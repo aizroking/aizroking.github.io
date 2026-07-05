@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم AIZARO KING</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@700;800&family=Tajawal:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+:root{
+  --bg:#0a0b0f; --bg-elevated:#14161d; --bg-card:#16181f; --border:#262a35; --border-soft:#1d2029;
+  --fire-1:#ff5b1f; --fire-2:#ffb800; --royal:#8b5cf6; --royal-soft:#a78bfa;
+  --text:#f2f1ec; --text-muted:#8b8d98; --radius:14px;
+}
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--text); font-family:'Tajawal',sans-serif; direction:rtl; min-height:100vh; }
+h1,h2,h3{ font-family:'Almarai',sans-serif; font-weight:800; }
+a{ color:inherit; }
+.container{ max-width:1120px; margin:0 auto; padding:0 20px; }
+.ember-field{ position:fixed; inset:0; z-index:-1;
+  background: radial-gradient(600px 400px at 15% -5%, rgba(255,91,31,0.16), transparent 60%),
+              radial-gradient(700px 500px at 105% 10%, rgba(139,92,246,0.14), transparent 60%), var(--bg); }
+.hud-bar{ position:sticky; top:0; z-index:40; background:rgba(10,11,15,0.85); backdrop-filter:blur(10px); border-bottom:1px solid var(--border-soft); }
+.hud-inner{ display:flex; align-items:center; justify-content:space-between; padding:14px 0; gap:16px; }
+.brand{ display:flex; align-items:center; gap:10px; font-size:20px; font-weight:800; white-space:nowrap; }
+.brand .crown{ font-size:22px; }
+.brand span.king{ background:linear-gradient(90deg,var(--fire-2),var(--fire-1)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.hud-right{ display:flex; align-items:center; gap:12px; }
+.btn{ border:none; border-radius:10px; padding:10px 18px; font-family:'Tajawal',sans-serif; font-weight:700; font-size:14px; cursor:pointer; }
+.btn:active{ transform:scale(0.97); }
+.btn-fire{ background:linear-gradient(90deg,var(--fire-1),var(--fire-2)); color:#140900; }
+.btn-royal{ background:var(--royal); color:#fff; }
+.btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-danger{ background:rgba(239,68,68,0.14); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
+.btn-block{ width:100%; }
+.btn-sm{ padding:7px 12px; font-size:13px; }
+.login-shell{ min-height:80vh; display:flex; align-items:center; justify-content:center; }
+.login-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:34px; width:100%; max-width:360px; text-align:center; }
+.login-card .crown{ font-size:36px; margin-bottom:8px; }
+.login-card h2{ margin:0 0 6px; }
+.login-card p{ color:var(--text-muted); font-size:13.5px; margin:0 0 22px; }
+.admin-shell{ display:none; }
+.admin-shell.visible{ display:block; }
+.admin-tabs{ display:flex; gap:8px; margin-bottom:22px; border-bottom:1px solid var(--border-soft); flex-wrap:wrap; }
+.admin-tab{ padding:10px 18px; background:none; border:none; color:var(--text-muted); font-weight:700; font-family:'Tajawal',sans-serif; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.admin-tab.active{ color:var(--text); border-bottom-color:var(--fire-2); }
+.panel{ display:none; }
+.panel.active{ display:block; }
+.two-col{ display:grid; grid-template-columns:1.1fr 1.6fr; gap:22px; align-items:start; }
+@media (max-width:800px){ .two-col{ grid-template-columns:1fr; } }
+.form-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+.form-card h3{ margin:0 0 16px; font-size:16px; }
+.table-wrap{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:auto; }
+table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+th,td{ padding:12px 14px; text-align:right; border-bottom:1px solid var(--border-soft); white-space:nowrap; }
+th{ color:var(--text-muted); font-size:12px; font-weight:700; background:var(--bg-elevated); }
+tr:last-child td{ border-bottom:none; }
+.row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+.tag{ display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
+.tag.used{ background:rgba(239,68,68,.14); color:#fca5a5; }
+.tag.unused{ background:rgba(34,197,94,.14); color:#86efac; }
+.code-mono{ font-family:'JetBrains Mono',monospace; letter-spacing:.5px; }
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--text-muted); }
+.field input, .field select, .field textarea{ width:100%; background:var(--bg-elevated); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:var(--text); font-family:'Tajawal',sans-serif; font-size:14px; }
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--royal-soft); }
+.field input.mono{ font-family:'JetBrains Mono',monospace; letter-spacing:1px; }
+.field textarea{ resize:vertical; min-height:70px; }
+.msg{ font-size:13.5px; padding:10px 12px; border-radius:9px; margin-bottom:12px; }
+.msg.ok{ background:rgba(34,197,94,.12); color:#86efac; border:1px solid rgba(34,197,94,.3); }
+.msg.err{ background:rgba(239,68,68,.12); color:#fca5a5; border:1px solid rgba(239,68,68,.3); }
+.top-strip{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:12px; }
+.note{ font-size:12.5px; color:var(--text-muted); background:var(--bg-elevated); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="ember-field"></div>
+
+<header class="hud-bar">
+  <div class="container hud-inner">
+    <div class="brand"><span class="crown">👑</span> AIZARO <span class="king">KING</span> <span style="color:var(--text-muted);font-size:14px;font-weight:700;">/ الإدارة</span></div>
+    <div class="hud-right">
+      <a href="index.html" class="btn btn-ghost btn-sm">رجوع للمتجر</a>
+      <button class="btn btn-danger btn-sm" id="logoutBtn" style="display:none;">تسجيل خروج</button>
+    </div>
+  </div>
+</header>
+
+<div class="container login-shell" id="loginShell">
+  <div class="login-card">
+    <div class="crown">👑</div>
+    <h2>دخول الإدارة</h2>
+    <p>هاي اللوحة يلي بتتحكم فيها بمنتجات المتجر وأكواد النقاط.</p>
+    <div id="loginMsg"></div>
+    <div class="field"><label>الإيميل</label><input type="email" id="emailInput" placeholder="admin@example.com"></div>
+    <div class="field"><label>كلمة المرور</label><input type="password" id="passInput" placeholder="••••••••"></div>
+    <button class="btn btn-fire btn-block" id="loginBtn">دخول</button>
+  </div>
+</div>
+
+<div class="container admin-shell" id="adminShell">
+  <div class="top-strip"><h2 style="margin:0;">لوحة التحكم</h2></div>
+
+  <div class="admin-tabs">
+    <button class="admin-tab active" data-panel="productsPanel">المنتجات</button>
+    <button class="admin-tab" data-panel="categoriesPanel">التصنيفات</button>
+    <button class="admin-tab" data-panel="codesPanel">أكواد النقاط</button>
+    <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
+  </div>
+
+  <div class="panel active" id="productsPanel">
+    <div class="two-col">
+      <div class="form-card">
+        <h3 id="productFormTitle">إضافة منتج جديد</h3>
+        <div id="productMsg"></div>
+        <div class="field"><label>اسم المنتج</label><input type="text" id="pName" placeholder="مثلاً: مونتاج فري فاير - نار"></div>
+        <div class="field"><label>التصنيف</label><select id="pCategory"></select></div>
+        <div class="field"><label>الوصف</label><textarea id="pDescription" placeholder="وصف قصير للمنتج"></textarea></div>
+        <div class="field"><label>السعر (نقاط)</label><input type="number" id="pPrice" min="1" placeholder="150"></div>
+        <div class="field"><label>رابط التحميل</label><input type="text" id="pLink" class="mono" placeholder="https://..."></div>
+        <div class="field"><label>أيقونة (إيموجي اختياري)</label><input type="text" id="pIcon" placeholder="🔥"></div>
+        <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
+        <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>رابط</th><th></th></tr></thead>
+          <tbody id="productsTableBody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="categoriesPanel">
+    <div class="two-col">
+      <div class="form-card">
+        <h3>إضافة تصنيف جديد</h3>
+        <div id="categoryMsg"></div>
+        <div class="field"><label>اسم التصنيف</label><input type="text" id="catLabel" placeholder="مثلاً: سكنات"></div>
+        <button class="btn btn-fire btn-block" id="addCategoryBtn">إضافة التصنيف</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>التصنيف</th><th></th></tr></thead>
+          <tbody id="categoriesTableBody"><tr><td colspan="2">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="codesPanel">
+    <div class="two-col">
+      <div class="form-card">
+        <h3>توليد كود نقاط جديد</h3>
+        <div id="codeMsg"></div>
+        <div class="field"><label>عدد النقاط</label><input type="number" id="cPoints" min="1" placeholder="100"></div>
+        <div class="field"><label>كود مخصص (اختياري)</label><input type="text" id="cCustom" class="mono" placeholder="AIZ-XXXX-XXX"></div>
+        <button class="btn btn-fire btn-block" id="addCodeBtn">توليد الكود</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الكود</th><th>النقاط</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="codesTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="settingsPanel">
+    <div class="form-card" style="max-width:420px;">
+      <h3>تغيير كلمة مرور الإدارة</h3>
+      <div id="settingsMsg"></div>
+      <div class="field"><label>كلمة المرور الجديدة</label><input type="password" id="newPass" placeholder="••••••••"></div>
+      <button class="btn btn-fire btn-block" id="changePassBtn">حفظ كلمة المرور</button>
+      <div class="note">✅ هاد الموقع مربوط الآن بـ Firebase. المنتجات والتصنيفات والأكواد محفوظة بقاعدة بيانات حقيقية وبتظهر لكل الزوار من أي جهاز.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAgZ9Ma1iK1Q9gaTBsXFQRFAEd427i72GY",
+  authDomain: "azi-or-king.firebaseapp.com",
+  projectId: "azi-or-king",
+  storageBucket: "azi-or-king.firebasestorage.app",
+  messagingSenderId: "510389718529",
+  appId: "1:510389718529:web:f3dfd2e1e22c0a4ac67a00",
+  measurementId: "G-2L98HEYY9X"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const PALETTE = ['#8b5cf6','#ff5b1f','#22c55e','#38bdf8','#f472b6','#facc15','#fb7185','#34d399'];
+
+function escapeHTML(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+function genCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 9; i++){ if (i === 4) s += '-'; s += chars[Math.floor(Math.random()*chars.length)]; }
+  return 'AIZ-' + s;
+}
+
+let allProducts = [];
+let allCategories = [];
+let editingProductId = null;
+
+/* ---------- Auth ---------- */
+auth.onAuthStateChanged((user) => {
+  if (user) showAdmin(); else showLogin();
+});
+
+function showLogin(){
+  document.getElementById('loginShell').style.display = 'flex';
+  document.getElementById('adminShell').classList.remove('visible');
+  document.getElementById('logoutBtn').style.display = 'none';
+}
+async function showAdmin(){
+  document.getElementById('loginShell').style.display = 'none';
+  document.getElementById('adminShell').classList.add('visible');
+  document.getElementById('logoutBtn').style.display = 'inline-block';
+  await loadAll();
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const pass = document.getElementById('passInput').value;
+  const msg = document.getElementById('loginMsg');
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'جاري الدخول...';
+  try{
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">خطأ: ' + escapeHTML(e.code || e.message) + '</div>';
+  }
+  btn.disabled = false; btn.textContent = 'دخول';
+});
+document.getElementById('passInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.admin-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.panel).classList.add('active');
+  });
+});
+
+/* ---------- Data loading ---------- */
+async function loadAll(){
+  const [productsSnap, categoriesSnap, codesSnap] = await Promise.all([
+    db.collection('products').get(),
+    db.collection('categories').get(),
+    db.collection('codes').get()
+  ]);
+  allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
+  window.__codes = codesSnap.docs.map(d => ({ code: d.id, ...d.data() }));
+  populateCategorySelect();
+  renderProductsTable();
+  renderCategoriesTable();
+  renderCodesTable();
+}
+
+function catLabel(slug){ const c = allCategories.find(c => c.slug === slug); return c ? c.label : slug; }
+function catColor(slug){ const c = allCategories.find(c => c.slug === slug); return c ? c.color : '#6b7280'; }
+
+/* ---------- Products ---------- */
+function populateCategorySelect(){
+  const select = document.getElementById('pCategory');
+  const current = select.value;
+  select.innerHTML = allCategories.map(c => `<option value="${c.slug}">${escapeHTML(c.label)}</option>`).join('');
+  if (current) select.value = current;
+}
+
+function renderProductsTable(){
+  const tbody = document.getElementById('productsTableBody');
+  if (allProducts.length === 0){ tbody.innerHTML = '<tr><td colspan="5">ما في منتجات بعد.</td></tr>'; return; }
+  tbody.innerHTML = allProducts.map(p => `
+    <tr>
+      <td>${p.icon || ''} ${escapeHTML(p.name)}</td>
+      <td><span class="tag" style="background:${catColor(p.category)}22; color:${catColor(p.category)};">${escapeHTML(catLabel(p.category))}</span></td>
+      <td>${p.price}</td>
+      <td class="code-mono" style="max-width:160px; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(p.link)}</td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-edit="${p.id}" title="تعديل">✏️</button>
+        <button class="btn btn-danger btn-sm" data-del="${p.id}">حذف</button>
+      </td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editProductRow(b.dataset.edit)));
+  tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteProductRow(b.dataset.del)));
+}
+
+async function deleteProductRow(id){
+  if (!confirm('متأكد بدك تحذف هاد المنتج؟')) return;
+  await db.collection('products').doc(id).delete();
+  allProducts = allProducts.filter(p => p.id !== id);
+  if (editingProductId === id) exitEditMode();
+  renderProductsTable();
+}
+
+function editProductRow(id){
+  const product = allProducts.find(p => p.id === id);
+  if (!product) return;
+  editingProductId = id;
+  document.getElementById('pName').value = product.name;
+  populateCategorySelect();
+  document.getElementById('pCategory').value = product.category;
+  document.getElementById('pDescription').value = product.description;
+  document.getElementById('pPrice').value = product.price;
+  document.getElementById('pLink').value = product.link;
+  document.getElementById('pIcon').value = product.icon || '';
+  document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
+  document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
+  document.getElementById('cancelEditBtn').style.display = 'block';
+  document.getElementById('productMsg').innerHTML = '';
+  document.getElementById('pName').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+function exitEditMode(){
+  editingProductId = null;
+  document.getElementById('productFormTitle').textContent = 'إضافة منتج جديد';
+  document.getElementById('addProductBtn').textContent = 'إضافة المنتج';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  ['pName','pDescription','pPrice','pLink','pIcon'].forEach(id => document.getElementById(id).value = '');
+}
+document.getElementById('cancelEditBtn').addEventListener('click', exitEditMode);
+
+document.getElementById('addProductBtn').addEventListener('click', async () => {
+  const name = document.getElementById('pName').value.trim();
+  const category = document.getElementById('pCategory').value;
+  const description = document.getElementById('pDescription').value.trim();
+  const price = Number(document.getElementById('pPrice').value);
+  const link = document.getElementById('pLink').value.trim();
+  const icon = document.getElementById('pIcon').value.trim();
+  const msg = document.getElementById('productMsg');
+  const btn = document.getElementById('addProductBtn');
+
+  if (!name || !description || !price || price <= 0 || !link){
+    msg.innerHTML = '<div class="msg err">عبي كل الحقول المطلوبة (السعر لازم يكون أكبر من صفر).</div>';
+    return;
+  }
+  btn.disabled = true;
+  const data = { name, category, description, price, link, icon: icon || '🎮' };
+  try{
+    if (editingProductId){
+      await db.collection('products').doc(editingProductId).update(data);
+      msg.innerHTML = '<div class="msg ok">تم حفظ التعديلات بنجاح.</div>';
+      exitEditMode();
+    } else {
+      await db.collection('products').add(data);
+      msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
+      ['pName','pDescription','pPrice','pLink','pIcon'].forEach(id => document.getElementById(id).value = '');
+    }
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+  btn.disabled = false;
+});
+
+/* ---------- Categories ---------- */
+function renderCategoriesTable(){
+  const tbody = document.getElementById('categoriesTableBody');
+  if (allCategories.length === 0){ tbody.innerHTML = '<tr><td colspan="2">ما في تصنيفات بعد.</td></tr>'; return; }
+  tbody.innerHTML = allCategories.map(c => `
+    <tr>
+      <td><span class="tag" style="background:${c.color}22; color:${c.color};">${escapeHTML(c.label)}</span></td>
+      <td class="row-actions"><button class="btn btn-danger btn-sm" data-delcat="${c.slug}">حذف</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-delcat]').forEach(b => b.addEventListener('click', () => deleteCategoryRow(b.dataset.delcat)));
+}
+
+async function deleteCategoryRow(slug){
+  if (!confirm('متأكد بدك تحذف هاد التصنيف؟')) return;
+  if (allProducts.some(p => p.category === slug)){
+    alert('في منتجات مستخدمة بهاد التصنيف، احذفهم أو غيّر تصنيفهم الأول.');
+    return;
+  }
+  await db.collection('categories').doc(slug).delete();
+  await loadAll();
+}
+
+document.getElementById('addCategoryBtn').addEventListener('click', async () => {
+  const label = document.getElementById('catLabel').value.trim();
+  const msg = document.getElementById('categoryMsg');
+  if (!label){ msg.innerHTML = '<div class="msg err">اكتب اسم التصنيف.</div>'; return; }
+  if (allCategories.some(c => c.label === label)){ msg.innerHTML = '<div class="msg err">هاد التصنيف موجود مسبقاً.</div>'; return; }
+  const slug = 'cat_' + Math.random().toString(36).slice(2,8);
+  const color = PALETTE[allCategories.length % PALETTE.length];
+  try{
+    await db.collection('categories').doc(slug).set({ label, color });
+    document.getElementById('catLabel').value = '';
+    msg.innerHTML = '<div class="msg ok">تمت إضافة التصنيف بنجاح.</div>';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Codes ---------- */
+function renderCodesTable(){
+  const tbody = document.getElementById('codesTableBody');
+  const codes = (window.__codes || []).slice().reverse();
+  if (codes.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما في أكواد بعد.</td></tr>'; return; }
+  tbody.innerHTML = codes.map(c => `
+    <tr>
+      <td class="code-mono">${escapeHTML(c.code)}</td>
+      <td>${c.points}</td>
+      <td><span class="tag ${c.used ? 'used' : 'unused'}">${c.used ? 'مستخدم' : 'متاح'}</span></td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-copy="${escapeHTML(c.code)}">نسخ</button>
+        <button class="btn btn-danger btn-sm" data-delcode="${escapeHTML(c.code)}">حذف</button>
+      </td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copy)));
+  tbody.querySelectorAll('[data-delcode]').forEach(b => b.addEventListener('click', () => deleteCodeRow(b.dataset.delcode)));
+}
+
+async function deleteCodeRow(code){
+  if (!confirm('متأكد بدك تحذف هاد الكود؟')) return;
+  await db.collection('codes').doc(code).delete();
+  await loadAll();
+}
+
+document.getElementById('addCodeBtn').addEventListener('click', async () => {
+  const points = Number(document.getElementById('cPoints').value);
+  const custom = document.getElementById('cCustom').value;
+  const msg = document.getElementById('codeMsg');
+  if (!points || points <= 0){ msg.innerHTML = '<div class="msg err">حدد عدد نقاط أكبر من صفر.</div>'; return; }
+  const code = (custom && custom.trim()) ? custom.trim().toUpperCase() : genCode();
+  if ((window.__codes || []).some(c => c.code === code)){ msg.innerHTML = '<div class="msg err">هاد الكود موجود مسبقاً، جرب كود ثاني.</div>'; return; }
+  try{
+    await db.collection('codes').doc(code).set({ points, used:false, createdAt: Date.now() });
+    msg.innerHTML = `<div class="msg ok">تم توليد الكود: <b class="code-mono">${escapeHTML(code)}</b></div>`;
+    document.getElementById('cPoints').value = '';
+    document.getElementById('cCustom').value = '';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Settings ---------- */
+document.getElementById('changePassBtn').addEventListener('click', async () => {
+  const newPass = document.getElementById('newPass').value;
+  const msg = document.getElementById('settingsMsg');
+  if (!newPass || newPass.length < 6){ msg.innerHTML = '<div class="msg err">كلمة المرور لازم تكون 6 أحرف أو أكتر.</div>'; return; }
+  try{
+    await auth.currentUser.updatePassword(newPass);
+    document.getElementById('newPass').value = '';
+    msg.innerHTML = '<div class="msg ok">تم تغيير كلمة المرور.</div>';
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ (يمكن لازم تسجل خروج وتدخل من جديد قبل ما تغيّر كلمة المرور): ' + escapeHTML(e.message) + '</div>';
+  }
+});
+</script>
+</body>
+</html>
