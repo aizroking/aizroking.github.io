@@ -144,6 +144,7 @@ tr:last-child td{ border-bottom:none; }
         <div class="field"><label>خصم / تخفيض % (اختياري)</label><input type="number" id="pDiscount" min="0" max="99" placeholder="مثلاً: 20"></div>
         <div class="field"><label>رابط التحميل</label><input type="text" id="pLink" class="mono" placeholder="https://..."></div>
         <div class="field"><label>أيقونة (إيموجي اختياري)</label><input type="text" id="pIcon" placeholder="🔥"></div>
+        <div class="field"><label>رابط صورة أو فيديو للمنتج (اختياري)</label><input type="text" id="pMedia" class="mono" placeholder="https://... (jpg/png أو mp4/webm)"></div>
         <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
         <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
       </div>
@@ -363,6 +364,7 @@ function editProductRow(id){
   document.getElementById('pDiscount').value = product.free ? '' : (product.discount || '');
   document.getElementById('pLink').value = product.link;
   document.getElementById('pIcon').value = product.icon || '';
+  document.getElementById('pMedia').value = product.media || '';
   document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
   document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
   document.getElementById('cancelEditBtn').style.display = 'block';
@@ -375,7 +377,7 @@ function exitEditMode(){
   document.getElementById('productFormTitle').textContent = 'إضافة منتج جديد';
   document.getElementById('addProductBtn').textContent = 'إضافة المنتج';
   document.getElementById('cancelEditBtn').style.display = 'none';
-  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon'].forEach(id => document.getElementById(id).value = '');
+  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pFree').checked = false;
   togglePriceFields();
 }
@@ -398,6 +400,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   const discount = free ? 0 : (Number(document.getElementById('pDiscount').value) || 0);
   const link = document.getElementById('pLink').value.trim();
   const icon = document.getElementById('pIcon').value.trim();
+  const media = document.getElementById('pMedia').value.trim();
   const msg = document.getElementById('productMsg');
   const btn = document.getElementById('addProductBtn');
 
@@ -410,7 +413,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     return;
   }
   btn.disabled = true;
-  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮' };
+  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media };
   try{
     if (editingProductId){
       await db.collection('products').doc(editingProductId).update(data);
@@ -419,7 +422,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     } else {
       await db.collection('products').add(data);
       msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
-      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon'].forEach(id => document.getElementById(id).value = '');
+      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('pFree').checked = false;
       togglePriceFields();
     }
@@ -519,7 +522,7 @@ async function reviveCodeRow(code){
   const snap = await ref.get();
   if (!snap.exists) return;
   const data = snap.data();
-  const update = { usesCount: 0, used: false };
+  const update = { usesCount: 0, used: false, redeemedBy: [] };
   if (data.durationDays){ update.expiresAt = Date.now() + Number(data.durationDays) * 86400000; }
   else { update.expiresAt = null; }
   await ref.update(update);
