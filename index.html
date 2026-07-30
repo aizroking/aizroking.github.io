@@ -799,9 +799,30 @@ function confirmPurchase(){
     <div class="msg ok">${product.free ? 'تم فتح المنتج المجاني بنجاح! 🎉' : 'تم الشراء بنجاح! الكود جاهز 🎉'}</div>
     ${gotCoupon ? `<div class="msg ok">🎟️ مبروك! ربحت كوبون بقيمة ${COUPON_VALUE}، شوفه بمحفظتك وحوّله لجواهر.</div>` : ''}
     ${renderTicketCard(product)}
+    ${product.productKey ? renderKeyCard(product.productKey) : ''}
     <a class="btn btn-fire btn-block" href="${escapeHTML(product.link)}" target="_blank" rel="noopener">فتح رابط التحميل</a>
   `;
   wireTicketCopyButtons(document.getElementById('purchaseBody'));
+}
+
+function renderKeyCard(key){
+  const bars = Array.from({length: 24}, () => Math.round(4 + Math.random() * 18)).map(h => `<span style="height:${h}px"></span>`).join('');
+  const codeId = 'keyCode_' + Math.random().toString(36).slice(2,8);
+  return `
+  <div class="ticket-wrap">
+    <div class="ticket-card">
+      <div class="ticket-top">
+        <span class="ticket-brand">🔑 مفتاح المنتج</span>
+        <div class="ticket-barcode">${bars}</div>
+      </div>
+      <div class="ticket-title">هاد المفتاح مرتبط بالمنتج، احتفظ بيه</div>
+      <div class="ticket-code-row">
+        <div class="ticket-code" id="${codeId}">${escapeHTML(key)}</div>
+        <button class="ticket-copy-btn" data-copy-id="${codeId}" title="نسخ">📋</button>
+      </div>
+      <hr class="ticket-perforation">
+    </div>
+  </div>`;
 }
 
 function renderTicketCard(product){
@@ -859,6 +880,7 @@ function renderWallet(){
 
   const purchasesHTML = ownedList.length ? ownedList.map(p => {
     const codeId = 'wp_' + Math.random().toString(36).slice(2,8);
+    const keyId = 'wpk_' + Math.random().toString(36).slice(2,8);
     return `
     <div class="wallet-purchase-item">
       <div class="wp-name">${escapeHTML(p.name)}</div>
@@ -866,6 +888,11 @@ function renderWallet(){
         <div class="wp-link-text" id="${codeId}">${escapeHTML(p.link)}</div>
         <button class="wp-copy" data-copy-id="${codeId}" title="نسخ">📋</button>
       </div>
+      ${p.productKey ? `
+      <div class="wp-link">
+        <div class="wp-link-text" id="${keyId}">🔑 ${escapeHTML(p.productKey)}</div>
+        <button class="wp-copy" data-copy-id="${keyId}" title="نسخ">📋</button>
+      </div>` : ''}
     </div>`;
   }).join('') : '<div class="wallet-empty">لسا ما اشتريت ولا منتج.</div>';
 
