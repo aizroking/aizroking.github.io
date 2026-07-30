@@ -128,6 +128,8 @@ tr:last-child td{ border-bottom:none; }
     <button class="admin-tab active" data-panel="productsPanel">المنتجات</button>
     <button class="admin-tab" data-panel="categoriesPanel">التصنيفات</button>
     <button class="admin-tab" data-panel="codesPanel">أكواد النقاط</button>
+    <button class="admin-tab" data-panel="accountKeysPanel">مفاتيح الحسابات</button>
+    <button class="admin-tab" data-panel="accountsPanel">الحسابات</button>
     <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
   </div>
 
@@ -191,6 +193,40 @@ tr:last-child td{ border-bottom:none; }
           <tbody id="codesTableBody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <div class="panel" id="accountKeysPanel">
+    <div class="two-col">
+      <div class="form-card">
+        <h3>توليد مفتاح تفعيل حساب</h3>
+        <p style="color:var(--text-muted);font-size:13px;">هاد المفتاح كيسمح لشخص واحد يربط حساب جديد فالموقع (اسم مستخدم + كلمة مرور).</p>
+        <div id="accountKeyMsg"></div>
+        <button class="btn btn-fire btn-block" id="genAccountKeyBtn">توليد مفتاح جديد</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>المفتاح</th><th>الحالة</th><th>استُعمل من طرف</th><th></th></tr></thead>
+          <tbody id="accountKeysTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="accountsPanel">
+    <div class="form-card" style="margin-bottom:22px;">
+      <h3>🌟 صفقات VIP اليومية (خصم 90%)</h3>
+      <p style="color:var(--text-muted);font-size:13px;">اختار منتجين بالضبط يستفادو منهم المشتركين اليوم بخصم 90%.</p>
+      <div id="vipDealsMsg"></div>
+      <div class="field"><label>المنتج الأول</label><select id="vipDeal1"></select></div>
+      <div class="field"><label>المنتج الثاني</label><select id="vipDeal2"></select></div>
+      <button class="btn btn-fire btn-block" id="saveVipDealsBtn">حفظ صفقات اليوم</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>اسم المستخدم</th><th>النوع</th><th>نقاط</th><th>جواهر</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="usersTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -292,18 +328,27 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
-    db.collection('codes').get()
+    db.collection('codes').get(),
+    db.collection('accountKeys').get(),
+    db.collection('users').get(),
+    db.collection('settings').doc('vipDeals').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
   window.__codes = codesSnap.docs.map(d => ({ code: d.id, ...d.data() }));
+  window.__accountKeys = accountKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
+  window.__users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  window.__vipDeals = vipDealsSnap.exists ? vipDealsSnap.data() : { productIds: [] };
   populateCategorySelect();
   renderProductsTable();
   renderCategoriesTable();
   renderCodesTable();
+  renderAccountKeysTable();
+  renderUsersTable();
+  populateVipDealSelects();
 }
 
 function catLabel(slug){ const c = allCategories.find(c => c.slug === slug); return c ? c.label : slug; }
@@ -546,6 +591,128 @@ document.getElementById('addCodeBtn').addEventListener('click', async () => {
     document.getElementById('cCustom').value = '';
     document.getElementById('cMaxUses').value = '1';
     document.getElementById('cDurationDays').value = '';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Account Keys ---------- */
+function renderAccountKeysTable(){
+  const tbody = document.getElementById('accountKeysTableBody');
+  const keys = (window.__accountKeys || []).slice().reverse();
+  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما في مفاتيح بعد.</td></tr>'; return; }
+  tbody.innerHTML = keys.map(k => `
+    <tr>
+      <td class="code-mono">${escapeHTML(k.key)}</td>
+      <td><span class="tag ${k.used ? 'used' : 'unused'}">${k.used ? 'مستعمل' : 'متاح'}</span></td>
+      <td>${k.usedBy ? escapeHTML(k.usedBy) : '—'}</td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-copykey="${escapeHTML(k.key)}">نسخ</button>
+        <button class="btn btn-danger btn-sm" data-delkey="${escapeHTML(k.key)}" title="حذف">🗑️</button>
+      </td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-copykey]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copykey)));
+  tbody.querySelectorAll('[data-delkey]').forEach(b => b.addEventListener('click', () => deleteAccountKeyRow(b.dataset.delkey)));
+}
+
+async function deleteAccountKeyRow(key){
+  if (!confirm('متأكد بدك تحذف هاد المفتاح؟')) return;
+  await db.collection('accountKeys').doc(key).delete();
+  await loadAll();
+}
+
+document.getElementById('genAccountKeyBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('accountKeyMsg');
+  const key = 'AIZ-ACC-' + genCode().replace('AIZ-', '');
+  try{
+    await db.collection('accountKeys').doc(key).set({ used:false, usedBy:null, createdAt: Date.now() });
+    msg.innerHTML = `<div class="msg ok">تم توليد المفتاح: <b class="code-mono">${escapeHTML(key)}</b></div>`;
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Users / Accounts ---------- */
+function renderUsersTable(){
+  const tbody = document.getElementById('usersTableBody');
+  const users = (window.__users || []).slice().reverse();
+  if (users.length === 0){ tbody.innerHTML = '<tr><td colspan="7">ما في حسابات مسجلة بعد.</td></tr>'; return; }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td class="code-mono" style="font-size:11px;">${escapeHTML(u.id)}</td>
+      <td>${escapeHTML(u.username)}</td>
+      <td><span class="tag ${u.subscribed ? 'unused' : ''}">${u.subscribed ? '⭐ مشترك' : 'عادي'}</span></td>
+      <td>${u.points ?? 0}</td>
+      <td>${u.gems ?? 0}</td>
+      <td><span class="tag ${u.banned ? 'used' : 'unused'}">${u.banned ? 'محظور' : 'نشط'}</span></td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-addpts="${escapeHTML(u.id)}">+ نقاط</button>
+        <button class="btn btn-ghost btn-sm" data-subpts="${escapeHTML(u.id)}">- نقاط</button>
+        <button class="btn btn-ghost btn-sm" data-reset="${escapeHTML(u.id)}">تصفير</button>
+        <button class="btn btn-ghost btn-sm" data-kick="${escapeHTML(u.id)}">خروج قسري</button>
+        <button class="btn btn-danger btn-sm" data-ban="${escapeHTML(u.id)}">${u.banned ? 'رفع الحظر' : 'حظر'}</button>
+      </td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-addpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.addpts, true)));
+  tbody.querySelectorAll('[data-subpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.subpts, false)));
+  tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => resetUserAccount(b.dataset.reset)));
+  tbody.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickUserAccount(b.dataset.kick)));
+  tbody.querySelectorAll('[data-ban]').forEach(b => b.addEventListener('click', () => toggleBanUser(b.dataset.ban)));
+}
+
+async function adjustUserPoints(userId, positive){
+  const raw = prompt(positive ? 'كم نقطة بغيتي تزيد؟' : 'كم نقطة بغيتي تسلب؟');
+  const amount = Number(raw);
+  if (!raw || isNaN(amount) || amount <= 0) return;
+  const user = (window.__users || []).find(u => u.id === userId);
+  if (!user) return;
+  const newPoints = (user.points || 0) + (positive ? amount : -amount);
+  await db.collection('users').doc(userId).update({ points: newPoints });
+  await loadAll();
+}
+
+async function resetUserAccount(userId){
+  if (!confirm('متأكد بدك تصفر النقاط والجواهر تبع هاد الحساب؟')) return;
+  await db.collection('users').doc(userId).update({ points: 0, gems: 0 });
+  await loadAll();
+}
+
+async function kickUserAccount(userId){
+  await db.collection('users').doc(userId).update({ kickedAt: Date.now() });
+  alert('غادي يتسجل خروجه أول مرة يفتح الموقع.');
+}
+
+async function toggleBanUser(userId){
+  const user = (window.__users || []).find(u => u.id === userId);
+  if (!user) return;
+  await db.collection('users').doc(userId).update({ banned: !user.banned });
+  await loadAll();
+}
+
+/* ---------- VIP daily deals ---------- */
+function populateVipDealSelects(){
+  const sel1 = document.getElementById('vipDeal1');
+  const sel2 = document.getElementById('vipDeal2');
+  const options = '<option value="">— اختر منتج —</option>' + allProducts.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
+  sel1.innerHTML = options;
+  sel2.innerHTML = options;
+  const current = (window.__vipDeals || {}).productIds || [];
+  if (current[0]) sel1.value = current[0];
+  if (current[1]) sel2.value = current[1];
+}
+
+document.getElementById('saveVipDealsBtn').addEventListener('click', async () => {
+  const id1 = document.getElementById('vipDeal1').value;
+  const id2 = document.getElementById('vipDeal2').value;
+  const msg = document.getElementById('vipDealsMsg');
+  const ids = [id1, id2].filter(Boolean);
+  if (ids.length === 0){ msg.innerHTML = '<div class="msg err">اختار منتج واحد على الأقل.</div>'; return; }
+  if (id1 && id1 === id2){ msg.innerHTML = '<div class="msg err">اختار منتجين مختلفين.</div>'; return; }
+  try{
+    await db.collection('settings').doc('vipDeals').set({ productIds: ids, setAt: Date.now() });
+    msg.innerHTML = '<div class="msg ok">تم حفظ صفقات اليوم بنجاح.</div>';
     await loadAll();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
