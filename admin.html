@@ -239,6 +239,19 @@ tr:last-child td{ border-bottom:none; }
       <button class="btn btn-fire btn-block" id="changePassBtn">حفظ كلمة المرور</button>
       <div class="note">✅ هاد الموقع مربوط الآن بـ Firebase. المنتجات والتصنيفات والأكواد محفوظة بقاعدة بيانات حقيقية وبتظهر لكل الزوار من أي جهاز.</div>
     </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>🔗 روابط التواصل الاجتماعي</h3>
+      <p style="color:var(--text-muted);font-size:13px;">هاد الروابط بانين فأسفل الموقع. خلي الخانة فارغة إذا ما بغيتيش الأيقونة تبان.</p>
+      <div id="socialLinksMsg"></div>
+      <div class="field"><label>Telegram</label><input type="text" id="socTelegram" class="mono" placeholder="https://t.me/..."></div>
+      <div class="field"><label>TikTok</label><input type="text" id="socTiktok" class="mono" placeholder="https://tiktok.com/@..."></div>
+      <div class="field"><label>WhatsApp</label><input type="text" id="socWhatsapp" class="mono" placeholder="https://wa.me/..."></div>
+      <div class="field"><label>Instagram</label><input type="text" id="socInstagram" class="mono" placeholder="https://instagram.com/..."></div>
+      <div class="field"><label>YouTube</label><input type="text" id="socYoutube" class="mono" placeholder="https://youtube.com/..."></div>
+      <div class="field"><label>Discord</label><input type="text" id="socDiscord" class="mono" placeholder="https://discord.gg/..."></div>
+      <button class="btn btn-fire btn-block" id="saveSocialLinksBtn">حفظ الروابط</button>
+    </div>
   </div>
 </div>
 
@@ -329,13 +342,14 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
     db.collection('accountKeys').get(),
     db.collection('users').get(),
-    db.collection('settings').doc('vipDeals').get()
+    db.collection('settings').doc('vipDeals').get(),
+    db.collection('settings').doc('socialLinks').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -343,6 +357,8 @@ async function loadAll(){
   window.__accountKeys = accountKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   window.__users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   window.__vipDeals = vipDealsSnap.exists ? vipDealsSnap.data() : { productIds: [] };
+  window.__socialLinks = socialLinksSnap.exists ? socialLinksSnap.data() : {};
+  populateSocialLinksFields();
   populateCategorySelect();
   renderProductsTable();
   renderCategoriesTable();
@@ -716,6 +732,36 @@ document.getElementById('saveVipDealsBtn').addEventListener('click', async () =>
   try{
     await db.collection('settings').doc('vipDeals').set({ productIds: ids, setAt: Date.now() });
     msg.innerHTML = '<div class="msg ok">تم حفظ صفقات اليوم بنجاح.</div>';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Social links ---------- */
+function populateSocialLinksFields(){
+  const s = window.__socialLinks || {};
+  document.getElementById('socTelegram').value = s.telegram || '';
+  document.getElementById('socTiktok').value = s.tiktok || '';
+  document.getElementById('socWhatsapp').value = s.whatsapp || '';
+  document.getElementById('socInstagram').value = s.instagram || '';
+  document.getElementById('socYoutube').value = s.youtube || '';
+  document.getElementById('socDiscord').value = s.discord || '';
+}
+
+document.getElementById('saveSocialLinksBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('socialLinksMsg');
+  const data = {
+    telegram: document.getElementById('socTelegram').value.trim(),
+    tiktok: document.getElementById('socTiktok').value.trim(),
+    whatsapp: document.getElementById('socWhatsapp').value.trim(),
+    instagram: document.getElementById('socInstagram').value.trim(),
+    youtube: document.getElementById('socYoutube').value.trim(),
+    discord: document.getElementById('socDiscord').value.trim()
+  };
+  try{
+    await db.collection('settings').doc('socialLinks').set(data);
+    msg.innerHTML = '<div class="msg ok">تم حفظ الروابط بنجاح.</div>';
     await loadAll();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
