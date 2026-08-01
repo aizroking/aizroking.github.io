@@ -148,13 +148,14 @@ tr:last-child td{ border-bottom:none; }
         <div class="field"><label>أيقونة (إيموجي اختياري)</label><input type="text" id="pIcon" placeholder="🔥"></div>
         <div class="field"><label>رابط صورة أو فيديو للمنتج (اختياري)</label><input type="text" id="pMedia" class="mono" placeholder="https://... (jpg/png أو mp4/webm)"></div>
         <div class="field"><label>مفتاح خاص بالمنتج (اختياري — يوصل تلقائياً مع الشراء)</label><input type="text" id="pKey" class="mono" placeholder="مثلاً: مفتاح ترخيص المود"></div>
+        <div class="field"><label>مدة الصلاحية بالأيام (اختياري — بعدها يبقى المنتج غير متوفر تلقائياً)</label><input type="number" id="pDurationDays" min="1" placeholder="مثال: 7"></div>
         <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
         <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>رابط</th><th></th></tr></thead>
-          <tbody id="productsTableBody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>📥 تحميل</th><th>❤️ لايك</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="productsTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -381,27 +382,56 @@ function populateCategorySelect(){
 
 function renderProductsTable(){
   const tbody = document.getElementById('productsTableBody');
-  if (allProducts.length === 0){ tbody.innerHTML = '<tr><td colspan="5">ما في منتجات بعد.</td></tr>'; return; }
+  if (allProducts.length === 0){ tbody.innerHTML = '<tr><td colspan="7">ما في منتجات بعد.</td></tr>'; return; }
   tbody.innerHTML = allProducts.map(p => {
     const discount = Number(p.discount) || 0;
     let priceCell;
     if (p.free) priceCell = '<span class="tag free">مجاني</span>';
     else if (discount > 0) priceCell = `${p.price} <span class="tag promo">خصم ${discount}%</span>`;
     else priceCell = `${p.price}`;
+    const expired = p.expiresAt && Date.now() > p.expiresAt;
+    const unavailable = !!p.unavailable || expired;
     return `
     <tr>
       <td>${p.icon || ''} ${escapeHTML(p.name)}</td>
       <td><span class="tag" style="background:${catColor(p.category)}22; color:${catColor(p.category)};">${escapeHTML(catLabel(p.category))}</span></td>
       <td>${priceCell}</td>
-      <td class="code-mono" style="max-width:160px; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(p.link)}</td>
+      <td>${p.purchaseCount || 0}</td>
+      <td>${p.likes || 0}</td>
+      <td><span class="tag ${unavailable ? 'used' : 'unused'}">${unavailable ? 'غير متوفر' : 'متاح'}</span></td>
       <td class="row-actions">
         <button class="btn btn-ghost btn-sm" data-edit="${p.id}" title="تعديل">✏️</button>
+        <button class="btn btn-ghost btn-sm" data-addlike="${p.id}">+ لايك</button>
+        <button class="btn btn-ghost btn-sm" data-toggleavail="${p.id}">${unavailable ? 'إعادة تفعيل' : 'إنهاء المنتج'}</button>
         <button class="btn btn-danger btn-sm" data-del="${p.id}">حذف</button>
       </td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editProductRow(b.dataset.edit)));
   tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteProductRow(b.dataset.del)));
+  tbody.querySelectorAll('[data-addlike]').forEach(b => b.addEventListener('click', () => addProductLikes(b.dataset.addlike)));
+  tbody.querySelectorAll('[data-toggleavail]').forEach(b => b.addEventListener('click', () => toggleProductAvailability(b.dataset.toggleavail)));
+}
+
+async function addProductLikes(id){
+  const raw = prompt('كم لايك بغيتي تزيد؟');
+  const amount = Number(raw);
+  if (!raw || isNaN(amount) || amount <= 0) return;
+  const product = allProducts.find(p => p.id === id);
+  if (!product) return;
+  await db.collection('products').doc(id).update({ likes: (Number(product.likes) || 0) + amount });
+  await loadAll();
+}
+
+async function toggleProductAvailability(id){
+  const product = allProducts.find(p => p.id === id);
+  if (!product) return;
+  const expired = product.expiresAt && Date.now() > product.expiresAt;
+  const currentlyUnavailable = !!product.unavailable || expired;
+  const update = { unavailable: !currentlyUnavailable };
+  if (currentlyUnavailable) update.expiresAt = null;
+  await db.collection('products').doc(id).update(update);
+  await loadAll();
 }
 
 async function deleteProductRow(id){
@@ -428,6 +458,7 @@ function editProductRow(id){
   document.getElementById('pIcon').value = product.icon || '';
   document.getElementById('pMedia').value = product.media || '';
   document.getElementById('pKey').value = product.productKey || '';
+  document.getElementById('pDurationDays').value = product.durationDays || '';
   document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
   document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
   document.getElementById('cancelEditBtn').style.display = 'block';
@@ -440,7 +471,7 @@ function exitEditMode(){
   document.getElementById('productFormTitle').textContent = 'إضافة منتج جديد';
   document.getElementById('addProductBtn').textContent = 'إضافة المنتج';
   document.getElementById('cancelEditBtn').style.display = 'none';
-  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey'].forEach(id => document.getElementById(id).value = '');
+  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pFree').checked = false;
   togglePriceFields();
 }
@@ -465,6 +496,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   const icon = document.getElementById('pIcon').value.trim();
   const media = document.getElementById('pMedia').value.trim();
   const productKey = document.getElementById('pKey').value.trim();
+  const durationDays = Number(document.getElementById('pDurationDays').value) || 0;
   const msg = document.getElementById('productMsg');
   const btn = document.getElementById('addProductBtn');
 
@@ -477,16 +509,17 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     return;
   }
   btn.disabled = true;
-  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey };
+  const expiresAt = durationDays > 0 ? Date.now() + durationDays * 86400000 : null;
+  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey, durationDays: durationDays || null, expiresAt };
   try{
     if (editingProductId){
       await db.collection('products').doc(editingProductId).update(data);
       msg.innerHTML = '<div class="msg ok">تم حفظ التعديلات بنجاح.</div>';
       exitEditMode();
     } else {
-      await db.collection('products').add(data);
+      await db.collection('products').add({ ...data, likes: 0, purchaseCount: 0, unavailable: false });
       msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
-      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey'].forEach(id => document.getElementById(id).value = '');
+      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('pFree').checked = false;
       togglePriceFields();
     }
@@ -671,6 +704,7 @@ function renderUsersTable(){
         <button class="btn btn-ghost btn-sm" data-subpts="${escapeHTML(u.id)}">- نقاط</button>
         <button class="btn btn-ghost btn-sm" data-reset="${escapeHTML(u.id)}">تصفير</button>
         <button class="btn btn-ghost btn-sm" data-kick="${escapeHTML(u.id)}">خروج قسري</button>
+        <button class="btn btn-ghost btn-sm" data-viewip="${escapeHTML(u.id)}">IP</button>
         <button class="btn btn-danger btn-sm" data-ban="${escapeHTML(u.id)}">${u.banned ? 'رفع الحظر' : 'حظر'}</button>
       </td>
     </tr>`).join('');
@@ -678,6 +712,7 @@ function renderUsersTable(){
   tbody.querySelectorAll('[data-subpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.subpts, false)));
   tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => resetUserAccount(b.dataset.reset)));
   tbody.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickUserAccount(b.dataset.kick)));
+  tbody.querySelectorAll('[data-viewip]').forEach(b => b.addEventListener('click', () => banIPManually(b.dataset.viewip)));
   tbody.querySelectorAll('[data-ban]').forEach(b => b.addEventListener('click', () => toggleBanUser(b.dataset.ban)));
 }
 
@@ -706,8 +741,23 @@ async function kickUserAccount(userId){
 async function toggleBanUser(userId){
   const user = (window.__users || []).find(u => u.id === userId);
   if (!user) return;
-  await db.collection('users').doc(userId).update({ banned: !user.banned });
+  const willBan = !user.banned;
+  await db.collection('users').doc(userId).update({ banned: willBan });
+  const ips = Array.isArray(user.ips) ? user.ips : [];
+  for (const ip of ips){
+    try{
+      if (willBan) await db.collection('bannedIPs').doc(ip).set({ bannedBy: userId, bannedAt: Date.now() });
+      else await db.collection('bannedIPs').doc(ip).delete();
+    } catch(e){}
+  }
   await loadAll();
+}
+
+async function banIPManually(userId){
+  const user = (window.__users || []).find(u => u.id === userId);
+  const ips = user && Array.isArray(user.ips) ? user.ips : [];
+  if (ips.length === 0){ alert('ما عندناش IP مسجل لهاد المستخدم بعد (لازم يزور الموقع مرة على الأقل).'); return; }
+  alert('الـ IPs المرتبطة بهاد الحساب: ' + ips.join(', '));
 }
 
 /* ---------- VIP daily deals ---------- */
