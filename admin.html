@@ -130,6 +130,7 @@ tr:last-child td{ border-bottom:none; }
     <button class="admin-tab" data-panel="codesPanel">أكواد النقاط</button>
     <button class="admin-tab" data-panel="accountKeysPanel">مفاتيح الحسابات</button>
     <button class="admin-tab" data-panel="accountsPanel">الحسابات</button>
+    <button class="admin-tab" data-panel="moderatorsPanel">المشرفين</button>
     <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
   </div>
 
@@ -154,8 +155,8 @@ tr:last-child td{ border-bottom:none; }
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>📥 تحميل</th><th>❤️ لايك</th><th>الحالة</th><th></th></tr></thead>
-          <tbody id="productsTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>📥 تحميل</th><th>❤️ لايك</th><th>أضيف من</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="productsTableBody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -228,6 +229,27 @@ tr:last-child td{ border-bottom:none; }
       <table>
         <thead><tr><th>ID</th><th>اسم المستخدم</th><th>النوع</th><th>نقاط</th><th>جواهر</th><th>الحالة</th><th></th></tr></thead>
         <tbody id="usersTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="moderatorsPanel">
+    <div class="form-card" style="max-width:420px;margin-bottom:22px;">
+      <h3>🛠️ توليد مفتاح مشرف جديد</h3>
+      <p style="color:var(--text-muted);font-size:13px;">أعطي هاد المفتاح لشخص باش يقدر يفتح حساب مشرف من صفحة mod.html، ويزيد منتجات للمتجر فقط (بلا صلاحية تعديل أو حذف).</p>
+      <div id="modKeyMsg"></div>
+      <button class="btn btn-fire btn-block" id="genModKeyBtn">توليد مفتاح مشرف</button>
+    </div>
+    <div class="table-wrap" style="margin-bottom:22px;">
+      <table>
+        <thead><tr><th>المفتاح</th><th>الحالة</th><th>استُعمل من طرف</th><th></th></tr></thead>
+        <tbody id="modKeysTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>اسم المشرف</th><th>عدد المنتجات المضافة</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="moderatorsTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -351,7 +373,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -359,7 +381,9 @@ async function loadAll(){
     db.collection('users').get(),
     db.collection('settings').doc('vipDeals').get(),
     db.collection('settings').doc('socialLinks').get(),
-    db.collection('settings').doc('siteMusic').get()
+    db.collection('settings').doc('siteMusic').get(),
+    db.collection('modKeys').get(),
+    db.collection('moderators').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -368,6 +392,8 @@ async function loadAll(){
   window.__users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   window.__vipDeals = vipDealsSnap.exists ? vipDealsSnap.data() : { productIds: [] };
   window.__socialLinks = socialLinksSnap.exists ? socialLinksSnap.data() : {};
+  window.__modKeys = modKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
+  window.__moderators = moderatorsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   populateSocialLinksFields();
   populateCategorySelect();
@@ -376,6 +402,8 @@ async function loadAll(){
   renderCodesTable();
   renderAccountKeysTable();
   renderUsersTable();
+  renderModKeysTable();
+  renderModeratorsTable();
   populateVipDealSelects();
 }
 
@@ -392,7 +420,7 @@ function populateCategorySelect(){
 
 function renderProductsTable(){
   const tbody = document.getElementById('productsTableBody');
-  if (allProducts.length === 0){ tbody.innerHTML = '<tr><td colspan="7">ما في منتجات بعد.</td></tr>'; return; }
+  if (allProducts.length === 0){ tbody.innerHTML = '<tr><td colspan="8">ما في منتجات بعد.</td></tr>'; return; }
   tbody.innerHTML = allProducts.map(p => {
     const discount = Number(p.discount) || 0;
     let priceCell;
@@ -401,6 +429,7 @@ function renderProductsTable(){
     else priceCell = `${p.price}`;
     const expired = p.expiresAt && Date.now() > p.expiresAt;
     const unavailable = !!p.unavailable || expired;
+    const addedByLabel = p.addedByName ? `👤 ${escapeHTML(p.addedByName)}` : 'الإدارة';
     return `
     <tr>
       <td>${p.icon || ''} ${escapeHTML(p.name)}</td>
@@ -408,6 +437,7 @@ function renderProductsTable(){
       <td>${priceCell}</td>
       <td>${p.purchaseCount || 0}</td>
       <td>${p.likes || 0}</td>
+      <td>${addedByLabel}</td>
       <td><span class="tag ${unavailable ? 'used' : 'unused'}">${unavailable ? 'غير متوفر' : 'متاح'}</span></td>
       <td class="row-actions">
         <button class="btn btn-ghost btn-sm" data-edit="${p.id}" title="تعديل">✏️</button>
@@ -770,6 +800,78 @@ async function banIPManually(userId){
   const ips = user && Array.isArray(user.ips) ? user.ips : [];
   if (ips.length === 0){ alert('ما عندناش IP مسجل لهاد المستخدم بعد (لازم يزور الموقع مرة على الأقل).'); return; }
   alert('الـ IPs المرتبطة بهاد الحساب: ' + ips.join(', '));
+}
+
+/* ---------- Moderators ---------- */
+function genModKeyCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return 'AIZ-MOD-' + s;
+}
+
+function renderModKeysTable(){
+  const tbody = document.getElementById('modKeysTableBody');
+  const keys = (window.__modKeys || []).slice().reverse();
+  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما في مفاتيح مشرفين بعد.</td></tr>'; return; }
+  tbody.innerHTML = keys.map(k => `
+    <tr>
+      <td class="code-mono">${escapeHTML(k.key)}</td>
+      <td><span class="tag ${k.used ? 'used' : 'unused'}">${k.used ? 'مستعمل' : 'متاح'}</span></td>
+      <td>${k.usedBy ? escapeHTML(k.usedBy) : '—'}</td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-copymodkey="${escapeHTML(k.key)}">نسخ</button>
+        <button class="btn btn-danger btn-sm" data-delmodkey="${escapeHTML(k.key)}" title="حذف">🗑️</button>
+      </td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-copymodkey]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copymodkey)));
+  tbody.querySelectorAll('[data-delmodkey]').forEach(b => b.addEventListener('click', () => deleteModKeyRow(b.dataset.delmodkey)));
+}
+
+async function deleteModKeyRow(key){
+  if (!confirm('متأكد بدك تحذف هاد المفتاح؟')) return;
+  await db.collection('modKeys').doc(key).delete();
+  await loadAll();
+}
+
+document.getElementById('genModKeyBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('modKeyMsg');
+  const key = genModKeyCode();
+  try{
+    await db.collection('modKeys').doc(key).set({ used: false, usedBy: null, createdAt: Date.now() });
+    msg.innerHTML = `<div class="msg ok">تم توليد المفتاح: <b class="code-mono">${escapeHTML(key)}</b> — أعطيه للشخص باش يفتح صفحة mod.html.</div>`;
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+function renderModeratorsTable(){
+  const tbody = document.getElementById('moderatorsTableBody');
+  const mods = window.__moderators || [];
+  if (mods.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما في مشرفين بعد.</td></tr>'; return; }
+  tbody.innerHTML = mods.map(m => {
+    const count = (allProducts || []).filter(p => p.addedBy === m.id).length;
+    const active = m.active !== false;
+    return `
+    <tr>
+      <td>${escapeHTML(m.username)}</td>
+      <td>${count}</td>
+      <td><span class="tag ${active ? 'unused' : 'used'}">${active ? 'نشط' : 'موقوف'}</span></td>
+      <td class="row-actions">
+        <button class="btn btn-danger btn-sm" data-toggleactive="${m.id}">${active ? 'إيقاف الصلاحية' : 'إعادة التفعيل'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-toggleactive]').forEach(b => b.addEventListener('click', () => toggleModeratorActive(b.dataset.toggleactive)));
+}
+
+async function toggleModeratorActive(modId){
+  const mod = (window.__moderators || []).find(m => m.id === modId);
+  if (!mod) return;
+  const active = mod.active !== false;
+  await db.collection('moderators').doc(modId).update({ active: !active });
+  await loadAll();
 }
 
 /* ---------- VIP daily deals ---------- */
