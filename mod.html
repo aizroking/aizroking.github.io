@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة المشرف - AIZARO KING</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+:root{
+  --bg:#ffffff; --bg-elevated:#f5f5f7; --bg-card:#ffffff; --border:#e5e5ea; --border-soft:#eeeef1;
+  --accent:#0071e3; --royal:#0071e3; --royal-soft:#42a1ec;
+  --text:#1d1d1f; --text-muted:#6e6e73; --radius:18px;
+  --shadow:0 2px 18px rgba(0,0,0,.06);
+}
+[data-theme="dark"]{
+  --bg:#0a0b0f; --bg-elevated:#16181f; --bg-card:#16181f; --border:#2a2d38; --border-soft:#1d2029;
+  --accent:#3b9dff; --royal:#3b9dff; --royal-soft:#6bb8ff;
+  --text:#f2f1ec; --text-muted:#9a9ca6;
+  --shadow:0 2px 18px rgba(0,0,0,.5);
+}
+*{ box-sizing:border-box; }
+html{ background:var(--bg); }
+body{ margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Arabic',-apple-system,BlinkMacSystemFont,sans-serif; direction:rtl; min-height:100vh; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+h1,h2,h3{ font-family:'IBM Plex Sans Arabic',-apple-system,BlinkMacSystemFont,sans-serif; font-weight:600; letter-spacing:-.015em; }
+a{ color:inherit; }
+.container{ max-width:820px; margin:0 auto; padding:0 20px; }
+.theme-toggle{ display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:var(--bg-elevated); border:1px solid var(--border); cursor:pointer; font-size:16px; padding:0; }
+.hud-bar{ position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.75); backdrop-filter:blur(20px) saturate(180%); border-bottom:1px solid var(--border-soft); }
+[data-theme="dark"] .hud-bar{ background:rgba(10,11,15,0.65); }
+.hud-inner{ display:flex; align-items:center; justify-content:space-between; padding:14px 0; gap:10px; }
+.brand{ display:flex; align-items:center; gap:6px; font-size:18px; font-weight:600; white-space:nowrap; }
+.brand span.king{ color:var(--accent); font-weight:700; }
+.hud-right{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.btn{ border:none; border-radius:980px; padding:11px 22px; font-family:'IBM Plex Sans Arabic',sans-serif; font-weight:600; font-size:14px; cursor:pointer; transition:opacity .15s ease, transform .15s ease; }
+.btn:active{ transform:scale(0.97); }
+.btn-fire{ background:var(--accent); color:#fff; }
+.btn-fire:hover{ opacity:.88; }
+.btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-ghost:hover{ background:var(--bg-elevated); }
+.btn-block{ width:100%; }
+.btn-sm{ padding:8px 14px; font-size:13px; }
+.login-shell{ min-height:80vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.login-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:34px; width:100%; max-width:360px; text-align:center; box-shadow:var(--shadow); }
+.login-card .crown{ font-size:36px; margin-bottom:8px; }
+.login-card h2{ margin:0 0 6px; }
+.login-card p{ color:var(--text-muted); font-size:13.5px; margin:0 0 22px; }
+.admin-shell{ display:none; padding:24px 0 60px; }
+.admin-shell.visible{ display:block; }
+.form-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:22px; }
+.form-card h3{ margin:0 0 16px; font-size:16px; }
+.table-wrap{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:auto; box-shadow:var(--shadow); }
+.my-store-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+.mini-store-hero{ text-align:center; padding:34px 20px; margin-bottom:22px; border-radius:var(--radius); background:linear-gradient(160deg,var(--bg-elevated),var(--bg-card)); border:1px solid var(--border); }
+.mini-store-hero-icon{ font-size:44px; margin-bottom:8px; }
+.mini-store-hero h2{ margin:0 0 6px; font-size:22px; }
+.mini-store-hero p{ color:var(--text-muted); font-size:13.5px; margin:0 0 18px; }
+.store-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); position:relative; }
+.store-card .card-icon{ font-size:30px; margin-bottom:10px; }
+.store-card .card-media{ width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:14px; margin-bottom:10px; background:var(--bg-elevated); display:block; }
+.store-card h4{ margin:0 0 6px; font-size:15px; }
+.store-card p{ margin:0 0 12px; font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+.store-card .card-price{ font-weight:700; font-size:14px; }
+.store-card .card-date{ font-size:11px; color:var(--text-muted); margin-top:8px; }
+table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+th,td{ padding:12px 14px; text-align:right; border-bottom:1px solid var(--border-soft); white-space:nowrap; }
+th{ color:var(--text-muted); font-size:12px; font-weight:700; background:var(--bg-elevated); }
+tr:last-child td{ border-bottom:none; }
+.tag{ display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
+.tag.free{ background:rgba(52,199,89,.1); color:#1a9e4f; }
+.tag.promo{ background:rgba(255,59,48,.1); color:#d70015; }
+.code-mono{ font-family:'JetBrains Mono',monospace; letter-spacing:.5px; }
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text-muted); }
+.field input, .field select, .field textarea{ width:100%; background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:11px 13px; color:var(--text); font-family:'IBM Plex Sans Arabic',sans-serif; font-size:14px; }
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--accent); }
+.field input.mono{ font-family:'JetBrains Mono',monospace; letter-spacing:1px; }
+.field textarea{ resize:vertical; min-height:70px; }
+.field-check{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.field-check input{ width:auto; }
+.field-check label{ margin:0; color:var(--text); font-weight:600; font-size:14px; }
+.msg{ font-size:13.5px; padding:10px 12px; border-radius:12px; margin-bottom:12px; }
+.msg.ok{ background:rgba(52,199,89,.1); color:#1a9e4f; border:1px solid rgba(52,199,89,.25); }
+.msg.err{ background:rgba(255,59,48,.1); color:#d70015; border:1px solid rgba(255,59,48,.25); }
+.note{ font-size:12.5px; color:var(--text-muted); background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-top:8px; }
+.top-strip{ display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:12px; }
+a.small-link{ font-size:13px; color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<script>
+(function(){ try{ document.documentElement.setAttribute('data-theme', localStorage.getItem('aizaro_theme') || 'dark'); }catch(e){} })();
+</script>
+
+<header class="hud-bar">
+  <div class="container hud-inner">
+    <div class="brand">🛠️ <span class="king">لوحة</span> المشرف</div>
+    <div class="hud-right">
+      <button class="theme-toggle" id="themeToggleBtn" title="تبديل الوضع الليلي">🌙</button>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<div class="login-shell" id="loginShell">
+  <div class="login-card">
+    <div class="crown">🛠️</div>
+    <h2>دخول المشرف</h2>
+    <div id="loginMsg"></div>
+
+    <div id="stepKey">
+      <div class="field"><label>مفتاح المشرف</label><input type="text" id="modKeyInput" class="mono" placeholder="AIZ-MOD-XXXX"></div>
+      <button class="btn btn-fire btn-block" id="modKeySubmit">تحقق من المفتاح</button>
+      <p style="margin-top:16px;"><a href="#" class="small-link" id="goToModLogin">عندك حساب مشرف من قبل؟ سجل الدخول</a></p>
+    </div>
+
+    <div id="stepRegister" style="display:none;">
+      <div class="field"><label>اسم المستخدم</label><input type="text" id="modRegUsername"></div>
+      <div class="field"><label>كلمة المرور</label><input type="password" id="modRegPassword"></div>
+      <button class="btn btn-fire btn-block" id="modRegSubmit">إنشاء حساب المشرف</button>
+    </div>
+
+    <div id="stepLogin" style="display:none;">
+      <div class="field"><label>اسم المستخدم</label><input type="text" id="modLoginUsername"></div>
+      <div class="field"><label>كلمة المرور</label><input type="password" id="modLoginPassword"></div>
+      <button class="btn btn-fire btn-block" id="modLoginSubmit">دخول</button>
+      <p style="margin-top:16px;"><a href="#" class="small-link" id="goToModKey">ماعندكش حساب؟ فعّل بمفتاح</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="admin-shell" id="modShell">
+  <div class="top-strip">
+    <div>مرحباً <b id="modUsernameLabel"></b> 👋</div>
+    <button class="btn btn-ghost btn-sm" id="modLogoutBtn">تسجيل الخروج</button>
+  </div>
+
+  <div class="mini-store-hero">
+    <div class="mini-store-hero-icon">🛍️</div>
+    <h2>متجرك المصغر</h2>
+    <p>هنا كتبان كل المنتجات لي زدتها بروحك للمتجر الرئيسي.</p>
+    <button class="btn btn-fire" id="toggleAddFormBtn">➕ إضافة منتج جديد</button>
+  </div>
+
+  <div class="form-card" id="addProductForm" style="display:none;">
+    <h3>➕ إضافة منتج جديد</h3>
+    <div id="addProductMsg"></div>
+    <div class="field"><label>اسم المنتج</label><input type="text" id="pName" placeholder="مثلاً: مونتاج فري فاير - نار"></div>
+    <div class="field"><label>التصنيف</label><select id="pCategory"></select></div>
+    <div class="field"><label>الوصف</label><textarea id="pDescription" placeholder="وصف قصير للمنتج"></textarea></div>
+    <div class="field-check"><input type="checkbox" id="pFree"><label for="pFree">🎁 منتج مجاني (بدون نقاط)</label></div>
+    <div class="field"><label>السعر (نقاط)</label><input type="number" id="pPrice" min="1" placeholder="150"></div>
+    <div class="field"><label>خصم / تخفيض % (اختياري)</label><input type="number" id="pDiscount" min="0" max="99" placeholder="مثلاً: 20"></div>
+    <div class="field"><label>رابط التحميل</label><input type="text" id="pLink" class="mono" placeholder="https://..."></div>
+    <div class="field"><label>أيقونة (إيموجي اختياري)</label><input type="text" id="pIcon" placeholder="🔥"></div>
+    <div class="field"><label>رابط صورة أو فيديو للمنتج (اختياري)</label><input type="text" id="pMedia" class="mono" placeholder="https://... (jpg/png أو mp4/webm)"></div>
+    <div class="field"><label>مفتاح خاص بالمنتج (اختياري)</label><input type="text" id="pKey" class="mono" placeholder="مفتاح ترخيص المود"></div>
+    <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
+    <div class="note">⚠️ ما تقدرش تعدل ولا تحذف المنتجات بعد إضافتها. إذا احتجت تعديل أو حذف، تواصل مع الإدارة.</div>
+  </div>
+
+  <div class="my-store-grid" id="myProductsGrid"><p class="note">جاري التحميل...</p></div>
+</div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAgZ9Ma1iK1Q9gaTBsXFQRFAEd427i72GY",
+  authDomain: "azi-or-king.firebaseapp.com",
+  projectId: "azi-or-king",
+  storageBucket: "azi-or-king.firebasestorage.app",
+  messagingSenderId: "510389718529",
+  appId: "1:510389718529:web:f3dfd2e1e22c0a4ac67a00",
+  measurementId: "G-2L98HEYY9X"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function escapeHTML(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('aizaro_theme', t); }catch(e){}
+  document.getElementById('themeToggleBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+}
+document.getElementById('themeToggleBtn').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+applyTheme(localStorage.getItem('aizaro_theme') || 'dark');
+
+/* ---------- Moderator session ---------- */
+const MOD_SESSION_KEY = 'aizaro_mod_session';
+function getModSession(){
+  try{ return JSON.parse(localStorage.getItem(MOD_SESSION_KEY) || 'null'); } catch(e){ return null; }
+}
+function setModSession(s){
+  if (s) localStorage.setItem(MOD_SESSION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(MOD_SESSION_KEY);
+}
+
+function showStep(id){
+  ['stepKey','stepRegister','stepLogin'].forEach(s => document.getElementById(s).style.display = (s === id) ? 'block' : 'none');
+  document.getElementById('loginMsg').innerHTML = '';
+}
+document.getElementById('goToModLogin').addEventListener('click', (e) => { e.preventDefault(); showStep('stepLogin'); });
+document.getElementById('goToModKey').addEventListener('click', (e) => { e.preventDefault(); showStep('stepKey'); });
+
+let verifiedModKey = null;
+document.getElementById('modKeySubmit').addEventListener('click', async () => {
+  const input = document.getElementById('modKeyInput');
+  const msg = document.getElementById('loginMsg');
+  if (!input.value.trim()) return;
+  const key = input.value.trim().toUpperCase();
+  const btn = document.getElementById('modKeySubmit');
+  btn.disabled = true; btn.textContent = 'جاري التحقق...';
+  try{
+    const snap = await db.collection('modKeys').doc(key).get();
+    btn.disabled = false; btn.textContent = 'تحقق من المفتاح';
+    if (!snap.exists){ msg.innerHTML = '<div class="msg err">المفتاح غير صحيح.</div>'; return; }
+    if (snap.data().used){ msg.innerHTML = '<div class="msg err">هاد المفتاح مستخدم من قبل.</div>'; return; }
+    verifiedModKey = key;
+    showStep('stepRegister');
+  } catch(e){
+    btn.disabled = false; btn.textContent = 'تحقق من المفتاح';
+    msg.innerHTML = '<div class="msg err">صار خطأ، حاول مرة أخرى.</div>';
+  }
+});
+
+document.getElementById('modRegSubmit').addEventListener('click', async () => {
+  const uname = document.getElementById('modRegUsername').value.trim();
+  const pass = document.getElementById('modRegPassword').value;
+  const msg = document.getElementById('loginMsg');
+  if (!uname || !pass){ msg.innerHTML = '<div class="msg err">عمر الخانتين.</div>'; return; }
+  const btn = document.getElementById('modRegSubmit');
+  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+  try{
+    const existing = await db.collection('moderators').where('username', '==', uname).limit(1).get();
+    if (!existing.empty){
+      btn.disabled = false; btn.textContent = 'إنشاء حساب المشرف';
+      msg.innerHTML = '<div class="msg err">اسم المستخدم مستعمل، جرب اسم آخر.</div>';
+      return;
+    }
+    const modId = 'AIZ-MOD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+    await db.collection('moderators').doc(modId).set({ username: uname, password: pass, active: true, createdAt: Date.now() });
+    await db.collection('modKeys').doc(verifiedModKey).update({ used: true, usedBy: modId, usedAt: Date.now() });
+    setModSession({ id: modId, username: uname });
+    btn.disabled = false; btn.textContent = 'إنشاء حساب المشرف';
+    enterModShell();
+  } catch(e){
+    btn.disabled = false; btn.textContent = 'إنشاء حساب المشرف';
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('modLoginSubmit').addEventListener('click', async () => {
+  const uname = document.getElementById('modLoginUsername').value.trim();
+  const pass = document.getElementById('modLoginPassword').value;
+  const msg = document.getElementById('loginMsg');
+  if (!uname || !pass) return;
+  const btn = document.getElementById('modLoginSubmit');
+  btn.disabled = true; btn.textContent = 'جاري الدخول...';
+  try{
+    const snap = await db.collection('moderators').where('username', '==', uname).limit(1).get();
+    btn.disabled = false; btn.textContent = 'دخول';
+    if (snap.empty){ msg.innerHTML = '<div class="msg err">اسم المستخدم أو كلمة المرور غير صحيحة.</div>'; return; }
+    const doc = snap.docs[0];
+    const data = doc.data();
+    if (data.password !== pass){ msg.innerHTML = '<div class="msg err">اسم المستخدم أو كلمة المرور غير صحيحة.</div>'; return; }
+    if (data.active === false){ msg.innerHTML = '<div class="msg err">تم إلغاء صلاحية هاد الحساب من طرف الإدارة.</div>'; return; }
+    setModSession({ id: doc.id, username: data.username });
+    enterModShell();
+  } catch(e){
+    btn.disabled = false; btn.textContent = 'دخول';
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('modLogoutBtn').addEventListener('click', () => {
+  setModSession(null);
+  document.getElementById('modShell').classList.remove('visible');
+  document.getElementById('loginShell').style.display = 'flex';
+  showStep('stepKey');
+});
+
+/* ---------- Product add (mod scope) ---------- */
+let modCategories = [];
+async function loadCategoriesForMod(){
+  const snap = await db.collection('categories').get();
+  modCategories = snap.docs.map(d => ({ slug: d.id, ...d.data() }));
+  const sel = document.getElementById('pCategory');
+  sel.innerHTML = modCategories.map(c => `<option value="${c.slug}">${escapeHTML(c.label)}</option>`).join('');
+}
+
+function catLabelMod(slug){ const c = modCategories.find(c => c.slug === slug); return c ? c.label : slug; }
+
+async function loadMyProducts(){
+  const session = getModSession();
+  const grid = document.getElementById('myProductsGrid');
+  if (!session) return;
+  try{
+    const snap = await db.collection('products').where('addedBy', '==', session.id).get();
+    const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (products.length === 0){ grid.innerHTML = '<p class="note">لسا ما زدت حتى منتج.</p>'; return; }
+    products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    grid.innerHTML = products.map(p => {
+      const discount = Number(p.discount) || 0;
+      let priceHTML;
+      if (p.free) priceHTML = '<span class="tag free">مجاني</span>';
+      else if (discount > 0) priceHTML = `<span class="card-price">${p.price} نقطة</span> <span class="tag promo">خصم ${discount}%</span>`;
+      else priceHTML = `<span class="card-price">${p.price} نقطة</span>`;
+      const dateLabel = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ar-DZ') : '—';
+      const mediaURL = (p.media || '').trim();
+      const isVideo = /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(mediaURL);
+      const mediaHTML = mediaURL
+        ? (isVideo
+            ? `<video class="card-media" src="${escapeHTML(mediaURL)}" muted loop playsinline autoplay></video>`
+            : `<img class="card-media" src="${escapeHTML(mediaURL)}" alt="${escapeHTML(p.name)}" loading="lazy">`)
+        : `<div class="card-icon">${p.icon || '🎮'}</div>`;
+      return `
+      <div class="store-card">
+        ${mediaHTML}
+        <h4>${escapeHTML(p.name)}</h4>
+        <p>${escapeHTML(p.description)}</p>
+        <div>${priceHTML}</div>
+        <div class="card-date">📅 ${dateLabel} — ${escapeHTML(catLabelMod(p.category))}</div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    grid.innerHTML = '<p class="note">صار خطأ فتحميل المنتجات.</p>';
+  }
+}
+
+document.getElementById('pFree').addEventListener('change', () => {
+  const free = document.getElementById('pFree').checked;
+  document.getElementById('pPrice').disabled = free;
+  document.getElementById('pDiscount').disabled = free;
+});
+
+document.getElementById('addProductBtn').addEventListener('click', async () => {
+  const session = getModSession();
+  if (!session) return;
+  const name = document.getElementById('pName').value.trim();
+  const category = document.getElementById('pCategory').value;
+  const description = document.getElementById('pDescription').value.trim();
+  const free = document.getElementById('pFree').checked;
+  const price = free ? 0 : Number(document.getElementById('pPrice').value);
+  const discount = free ? 0 : (Number(document.getElementById('pDiscount').value) || 0);
+  const link = document.getElementById('pLink').value.trim();
+  const icon = document.getElementById('pIcon').value.trim();
+  const media = document.getElementById('pMedia').value.trim();
+  const productKey = document.getElementById('pKey').value.trim();
+  const msg = document.getElementById('addProductMsg');
+
+  if (!name || !description || !link || (!free && (!price || price <= 0))){
+    msg.innerHTML = '<div class="msg err">عمر الخانات المطلوبة (الاسم، الوصف، الرابط، السعر).</div>';
+    return;
+  }
+  if (discount < 0 || discount > 99){
+    msg.innerHTML = '<div class="msg err">نسبة الخصم لازم بين 0 و 99.</div>';
+    return;
+  }
+
+  const btn = document.getElementById('addProductBtn');
+  btn.disabled = true;
+  try{
+    await db.collection('products').add({
+      name, category, description, price, discount, free, link,
+      icon: icon || '🎮', media, productKey,
+      likes: 0, purchaseCount: 0, unavailable: false,
+      createdAt: Date.now(),
+      addedBy: session.id,
+      addedByName: session.username
+    });
+    msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح ✅</div>';
+    ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pFree').checked = false;
+    await loadMyProducts();
+    setTimeout(() => {
+      document.getElementById('addProductForm').style.display = 'none';
+      document.getElementById('toggleAddFormBtn').textContent = '➕ إضافة منتج جديد';
+      document.getElementById('myProductsGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 900);
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('toggleAddFormBtn').addEventListener('click', () => {
+  const form = document.getElementById('addProductForm');
+  const isHidden = form.style.display === 'none';
+  form.style.display = isHidden ? 'block' : 'none';
+  document.getElementById('toggleAddFormBtn').textContent = isHidden ? '✖️ إغلاق النموذج' : '➕ إضافة منتج جديد';
+  if (isHidden) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+async function enterModShell(){
+  const session = getModSession();
+  if (!session) return;
+  document.getElementById('loginShell').style.display = 'none';
+  document.getElementById('modShell').classList.add('visible');
+  document.getElementById('modUsernameLabel').textContent = session.username;
+  await loadCategoriesForMod();
+  await loadMyProducts();
+}
+
+(function init(){
+  const session = getModSession();
+  if (session){
+    enterModShell();
+  }
+})();
+</script>
+</body>
+</html>
