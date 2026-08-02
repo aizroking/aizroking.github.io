@@ -286,6 +286,7 @@ footer a{ color:var(--accent); text-decoration:none; }
     <p>فعّل كودك، اجمع نقاطك، واحصل فوراً على رابط تحميل مباشر للمونتاج أو ملف تحسين الأداء يلي بدك ياه.</p>
     <div class="hero-actions">
       <button class="btn btn-fire" onclick="document.getElementById('store').scrollIntoView({behavior:'smooth'})">تصفح المتجر</button>
+      <a class="btn btn-ghost" id="iosPanelBtn" href="mod.html" style="display:none;text-decoration:none;">iOS Panel</a>
     </div>
     <div class="crown-meter">
       <div class="label">رصيدك الحالي</div>
@@ -314,7 +315,7 @@ footer a{ color:var(--accent); text-decoration:none; }
 
 <footer>
   <div class="social-links" id="socialLinks"></div>
-  © AIZARO KING — منتجات رقمية لعشاق فري فاير. <a href="admin.html">دخول الإدارة</a> · <a href="mod.html">iOS Store</a>
+  © AIZARO KING — منتجات رقمية لعشاق فري فاير. <a href="admin.html">دخول الإدارة</a>
 </footer>
 
 <div class="modal-overlay" id="redeemOverlay">
@@ -890,6 +891,16 @@ async function loadSocialLinks(){
 
 /* ---- Background music ---- */
 let siteMusicURL = null;
+/* ---- iOS Store icon (moderator entry) — only visible when at least one active moderator exists ---- */
+async function loadIosStoreVisibility(){
+  try{
+    const snap = await db.collection('moderators').where('active', '==', true).limit(1).get();
+    document.getElementById('iosPanelBtn').style.display = snap.empty ? 'none' : 'inline-flex';
+  } catch(e){
+    document.getElementById('iosPanelBtn').style.display = 'none';
+  }
+}
+
 async function loadSiteMusic(){
   try{
     const snap = await db.collection('settings').doc('siteMusic').get();
@@ -1525,6 +1536,7 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     await checkRegularAccountStatus();
     loadSocialLinks();
     loadSiteMusic();
+    loadIosStoreVisibility();
   } catch(e){
     document.getElementById('productGrid').innerHTML = '<div class="empty-state">صار خطأ بتحميل المتجر: ' + escapeHTML(e.message) + '</div>';
     return;
