@@ -50,6 +50,10 @@ a{ color:inherit; }
 .form-card h3{ margin:0 0 16px; font-size:16px; }
 .table-wrap{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:auto; box-shadow:var(--shadow); }
 .my-store-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+.mini-store-hero{ text-align:center; padding:34px 20px; margin-bottom:22px; border-radius:var(--radius); background:linear-gradient(160deg,var(--bg-elevated),var(--bg-card)); border:1px solid var(--border); }
+.mini-store-hero-icon{ font-size:44px; margin-bottom:8px; }
+.mini-store-hero h2{ margin:0 0 6px; font-size:22px; }
+.mini-store-hero p{ color:var(--text-muted); font-size:13.5px; margin:0 0 18px; }
 .store-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); position:relative; }
 .store-card .card-icon{ font-size:30px; margin-bottom:10px; }
 .store-card .card-media{ width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:14px; margin-bottom:10px; background:var(--bg-elevated); display:block; }
@@ -131,7 +135,14 @@ a.small-link{ font-size:13px; color:var(--accent); text-decoration:none; }
     <button class="btn btn-ghost btn-sm" id="modLogoutBtn">تسجيل الخروج</button>
   </div>
 
-  <div class="form-card">
+  <div class="mini-store-hero">
+    <div class="mini-store-hero-icon">🛍️</div>
+    <h2>متجرك المصغر</h2>
+    <p>هنا كتبان كل المنتجات لي زدتها بروحك للمتجر الرئيسي.</p>
+    <button class="btn btn-fire" id="toggleAddFormBtn">➕ إضافة منتج جديد</button>
+  </div>
+
+  <div class="form-card" id="addProductForm" style="display:none;">
     <h3>➕ إضافة منتج جديد</h3>
     <div id="addProductMsg"></div>
     <div class="field"><label>اسم المنتج</label><input type="text" id="pName" placeholder="مثلاً: مونتاج فري فاير - نار"></div>
@@ -148,7 +159,6 @@ a.small-link{ font-size:13px; color:var(--accent); text-decoration:none; }
     <div class="note">⚠️ ما تقدرش تعدل ولا تحذف المنتجات بعد إضافتها. إذا احتجت تعديل أو حذف، تواصل مع الإدارة.</div>
   </div>
 
-  <h3 style="margin:0 0 14px;">🛍️ متجري - المنتجات لي زدتها</h3>
   <div class="my-store-grid" id="myProductsGrid"><p class="note">جاري التحميل...</p></div>
 </div>
 
@@ -369,10 +379,23 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('pFree').checked = false;
     await loadMyProducts();
+    setTimeout(() => {
+      document.getElementById('addProductForm').style.display = 'none';
+      document.getElementById('toggleAddFormBtn').textContent = '➕ إضافة منتج جديد';
+      document.getElementById('myProductsGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 900);
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
   btn.disabled = false;
+});
+
+document.getElementById('toggleAddFormBtn').addEventListener('click', () => {
+  const form = document.getElementById('addProductForm');
+  const isHidden = form.style.display === 'none';
+  form.style.display = isHidden ? 'block' : 'none';
+  document.getElementById('toggleAddFormBtn').textContent = isHidden ? '✖️ إغلاق النموذج' : '➕ إضافة منتج جديد';
+  if (isHidden) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 async function enterModShell(){
