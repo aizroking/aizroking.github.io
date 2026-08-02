@@ -49,6 +49,14 @@ a{ color:inherit; }
 .form-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:22px; }
 .form-card h3{ margin:0 0 16px; font-size:16px; }
 .table-wrap{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:auto; box-shadow:var(--shadow); }
+.my-store-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+.store-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); position:relative; }
+.store-card .card-icon{ font-size:30px; margin-bottom:10px; }
+.store-card .card-media{ width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:14px; margin-bottom:10px; background:var(--bg-elevated); display:block; }
+.store-card h4{ margin:0 0 6px; font-size:15px; }
+.store-card p{ margin:0 0 12px; font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+.store-card .card-price{ font-weight:700; font-size:14px; }
+.store-card .card-date{ font-size:11px; color:var(--text-muted); margin-top:8px; }
 table{ width:100%; border-collapse:collapse; font-size:13.5px; }
 th,td{ padding:12px 14px; text-align:right; border-bottom:1px solid var(--border-soft); white-space:nowrap; }
 th{ color:var(--text-muted); font-size:12px; font-weight:700; background:var(--bg-elevated); }
@@ -140,12 +148,8 @@ a.small-link{ font-size:13px; color:var(--accent); text-decoration:none; }
     <div class="note">⚠️ ما تقدرش تعدل ولا تحذف المنتجات بعد إضافتها. إذا احتجت تعديل أو حذف، تواصل مع الإدارة.</div>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>تاريخ الإضافة</th></tr></thead>
-      <tbody id="myProductsTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
-    </table>
-  </div>
+  <h3 style="margin:0 0 14px;">🛍️ متجري - المنتجات لي زدتها</h3>
+  <div class="my-store-grid" id="myProductsGrid"><p class="note">جاري التحميل...</p></div>
 </div>
 
 </div>
@@ -285,29 +289,38 @@ function catLabelMod(slug){ const c = modCategories.find(c => c.slug === slug); 
 
 async function loadMyProducts(){
   const session = getModSession();
-  const tbody = document.getElementById('myProductsTableBody');
+  const grid = document.getElementById('myProductsGrid');
   if (!session) return;
   try{
     const snap = await db.collection('products').where('addedBy', '==', session.id).get();
     const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (products.length === 0){ tbody.innerHTML = '<tr><td colspan="4">لسا ما زدت حتى منتج.</td></tr>'; return; }
+    if (products.length === 0){ grid.innerHTML = '<p class="note">لسا ما زدت حتى منتج.</p>'; return; }
     products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    tbody.innerHTML = products.map(p => {
+    grid.innerHTML = products.map(p => {
       const discount = Number(p.discount) || 0;
-      let priceCell;
-      if (p.free) priceCell = '<span class="tag free">مجاني</span>';
-      else if (discount > 0) priceCell = `${p.price} <span class="tag promo">خصم ${discount}%</span>`;
-      else priceCell = `${p.price}`;
+      let priceHTML;
+      if (p.free) priceHTML = '<span class="tag free">مجاني</span>';
+      else if (discount > 0) priceHTML = `<span class="card-price">${p.price} نقطة</span> <span class="tag promo">خصم ${discount}%</span>`;
+      else priceHTML = `<span class="card-price">${p.price} نقطة</span>`;
       const dateLabel = p.createdAt ? new Date(p.createdAt).toLocaleDateString('ar-DZ') : '—';
-      return `<tr>
-        <td>${p.icon || ''} ${escapeHTML(p.name)}</td>
-        <td>${escapeHTML(catLabelMod(p.category))}</td>
-        <td>${priceCell}</td>
-        <td>${dateLabel}</td>
-      </tr>`;
+      const mediaURL = (p.media || '').trim();
+      const isVideo = /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(mediaURL);
+      const mediaHTML = mediaURL
+        ? (isVideo
+            ? `<video class="card-media" src="${escapeHTML(mediaURL)}" muted loop playsinline autoplay></video>`
+            : `<img class="card-media" src="${escapeHTML(mediaURL)}" alt="${escapeHTML(p.name)}" loading="lazy">`)
+        : `<div class="card-icon">${p.icon || '🎮'}</div>`;
+      return `
+      <div class="store-card">
+        ${mediaHTML}
+        <h4>${escapeHTML(p.name)}</h4>
+        <p>${escapeHTML(p.description)}</p>
+        <div>${priceHTML}</div>
+        <div class="card-date">📅 ${dateLabel} — ${escapeHTML(catLabelMod(p.category))}</div>
+      </div>`;
     }).join('');
   } catch(e){
-    tbody.innerHTML = '<tr><td colspan="4">صار خطأ فتحميل المنتجات.</td></tr>';
+    grid.innerHTML = '<p class="note">صار خطأ فتحميل المنتجات.</p>';
   }
 }
 
