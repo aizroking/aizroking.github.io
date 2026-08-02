@@ -137,6 +137,9 @@ html[data-vip="true"] .points-chip{ background:linear-gradient(90deg,#caa53d55,#
 .card h3{ font-size:17px; margin:0 0 8px; }
 .card p{ color:var(--text-muted); font-size:13.5px; line-height:1.7; margin:0 0 16px; min-height:44px; }
 .card-footer{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.card-meta{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 14px; }
+.meta-chip{ font-size:11px; color:var(--text-muted); background:var(--bg-elevated); border:1px solid var(--border); border-radius:8px; padding:3px 9px; }
+.meta-chip.meta-expiry{ color:#ff9500; border-color:#ff950040; }
 .price{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--text); font-size:14px; }
 .old{ color:#ff3b30; text-decoration:line-through; font-weight:600; font-size:12px; margin-inline-end:6px; }
 .price.free{ color:#1a9e4f; }
@@ -197,6 +200,7 @@ html[data-vip="true"] .points-chip{ background:linear-gradient(90deg,#caa53d55,#
 .key-ticket-meta .k-val{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:15px; }
 .key-ticket-btn{ background:rgba(255,255,255,.95); color:#12121a; max-width:320px; }
 .key-ticket-btn:hover{ opacity:.92; }
+#musicToggleBtn{ display:none; align-items:center; justify-content:center; position:fixed; bottom:20px; inset-inline-end:20px; z-index:500; width:50px; height:50px; border-radius:50%; border:1px solid var(--border); background:var(--bg-card); box-shadow:var(--shadow); font-size:20px; cursor:pointer; }
 footer{ border-top:1px solid var(--border-soft); padding:28px 0; color:var(--text-muted); font-size:13px; text-align:center; }
 .social-links{ display:flex; justify-content:center; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
 .social-links a{ display:flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted); text-decoration:none; transition:transform .15s ease, background .15s ease, color .15s ease; }
@@ -206,6 +210,10 @@ footer a{ color:var(--accent); text-decoration:none; }
 
 /* ---- Welcome splash ---- */
 #banOverlay{ position:fixed; inset:0; z-index:9999; background:#050608; display:none; align-items:center; justify-content:center; padding:24px; }
+#unbanOverlay{ position:fixed; inset:0; z-index:9998; background:rgba(5,6,8,.92); display:none; align-items:center; justify-content:center; padding:24px; }
+#unbanOverlay.show{ display:flex; }
+.unban-box{ border-color:#1a9e4f40 !important; }
+.unban-box h2{ color:#1a9e4f !important; }
 #banOverlay.show{ display:flex; }
 .ban-box{ max-width:380px; text-align:center; background:#141518; border:1px solid #ff3b3040; border-radius:22px; padding:38px 26px; }
 .ban-icon{ font-size:56px; margin-bottom:10px; }
@@ -232,6 +240,15 @@ footer a{ color:var(--accent); text-decoration:none; }
     <h2>حاسب محظور</h2>
     <p id="banMessage">هذا الحاسب محظور من استخدام الموقع.</p>
     <a class="ban-support-btn" href="https://t.me/OUSSIXIT" target="_blank" rel="noopener">📩 تواصل مع الدعم</a>
+  </div>
+</div>
+
+<div id="unbanOverlay">
+  <div class="ban-box unban-box">
+    <div class="ban-icon">🎉</div>
+    <h2>تم رفع الحظر عن حسابك</h2>
+    <p>مرحباً بيك من جديد! رجاء ما تكررش نفس المخالفة اللي سببت فحظر حسابك، عشان ما نضطروش نحظروك مرة أخرى.</p>
+    <button class="ban-support-btn" id="unbanOkBtn" style="background:#1a9e4f;border:none;">تمام، فهمت</button>
   </div>
 </div>
 
@@ -291,6 +308,9 @@ footer a{ color:var(--accent); text-decoration:none; }
     <div class="grid" id="productGrid"><div class="empty-state">جاري التحميل...</div></div>
   </div>
 </section>
+
+<audio id="bgMusic" loop></audio>
+<button id="musicToggleBtn" title="تشغيل/إيقاف الموسيقى">🔊</button>
 
 <footer>
   <div class="social-links" id="socialLinks"></div>
@@ -439,6 +459,7 @@ async function createRegularUser(username){
   await db.collection('users').doc(userId).set(doc);
   const rec = { id: userId, username: uname };
   setRegularUser(rec);
+  await recordDeviceIP(userId);
   return { ok:true, id: userId, username: uname };
 }
 function generateRandomUsername(){
@@ -456,7 +477,14 @@ async function checkRegularAccountStatus(){
     const data = snap.data();
     setBalance(data.points || 0);
     setGems(data.gems || 0);
+    if (data.unbanNotice){
+      showUnbanNotice();
+      db.collection('users').doc(r.id).update({ unbanNotice: false }).catch(()=>{});
+    }
   } catch(e){}
+}
+function showUnbanNotice(){
+  document.getElementById('unbanOverlay').classList.add('show');
 }
 function getBalance(){ return parseInt(localStorage.getItem(BAL_KEY) || '0', 10); }
 function setBalance(v){
@@ -666,6 +694,7 @@ async function registerAccount(key, username, password){
   setCurrentUser(session);
   setBalance(userDoc.points);
   setGems(userDoc.gems);
+  await recordDeviceIP(userId);
   return { ok:true, userId };
 }
 
@@ -681,6 +710,7 @@ async function loginAccount(username, password){
   setCurrentUser(session);
   setBalance(data.points || 0);
   setGems(data.gems || 0);
+  await recordDeviceIP(doc.id);
   return { ok:true };
 }
 
@@ -694,8 +724,26 @@ async function getPublicIP(){
   try{
     const res = await fetch('https://api.ipify.org?format=json');
     const data = await res.json();
-    return data.ip || null;
-  } catch(e){ return null; }
+    if (data.ip) return data.ip;
+  } catch(e){}
+  try{
+    const res2 = await fetch('https://api64.ipify.org?format=json');
+    const data2 = await res2.json();
+    if (data2.ip) return data2.ip;
+  } catch(e){}
+  return null;
+}
+
+let currentClientIP = null;
+async function recordDeviceIP(accountId){
+  if (!accountId) return;
+  if (!currentClientIP) currentClientIP = await getPublicIP();
+  if (!currentClientIP) return;
+  try{
+    await db.collection('users').doc(accountId).update({
+      ips: firebase.firestore.FieldValue.arrayUnion(currentClientIP)
+    });
+  } catch(e){}
 }
 
 async function checkIsVPN(ip){
@@ -716,18 +764,13 @@ function showBanBlock(vpnDetected){
   overlay.classList.add('show');
 }
 
-let currentClientIP = null;
 async function enforceAccessControl(){
   currentClientIP = await getPublicIP();
 
   const u = getCurrentUser();
   const r = getRegularUser();
   const accountId = u ? u.id : (r ? r.id : null);
-  if (accountId && currentClientIP){
-    db.collection('users').doc(accountId).update({
-      ips: firebase.firestore.FieldValue.arrayUnion(currentClientIP)
-    }).catch(()=>{});
-  }
+  await recordDeviceIP(accountId);
 
   if (currentClientIP){
     try{
@@ -768,6 +811,10 @@ async function checkAccountStatus(){
     }
     setBalance(data.points || 0);
     setGems(data.gems || 0);
+    if (data.unbanNotice){
+      showUnbanNotice();
+      db.collection('users').doc(u.id).update({ unbanNotice: false }).catch(()=>{});
+    }
     await claimDailyBonus(u.id, data);
   } catch(e){}
 }
@@ -841,6 +888,36 @@ async function loadSocialLinks(){
   } catch(e){ /* silently skip if unavailable */ }
 }
 
+/* ---- Background music ---- */
+let siteMusicURL = null;
+async function loadSiteMusic(){
+  try{
+    const snap = await db.collection('settings').doc('siteMusic').get();
+    siteMusicURL = snap.exists ? (snap.data().url || '').trim() : '';
+  } catch(e){ siteMusicURL = ''; }
+  const audio = document.getElementById('bgMusic');
+  const btn = document.getElementById('musicToggleBtn');
+  if (!siteMusicURL){ btn.style.display = 'none'; return; }
+  audio.src = siteMusicURL;
+  btn.style.display = 'flex';
+}
+function startSiteMusic(){
+  const audio = document.getElementById('bgMusic');
+  if (!siteMusicURL) return;
+  audio.play().catch(() => {});
+}
+document.getElementById('musicToggleBtn').addEventListener('click', () => {
+  const audio = document.getElementById('bgMusic');
+  const btn = document.getElementById('musicToggleBtn');
+  if (audio.paused){
+    audio.play().catch(() => {});
+    btn.textContent = '🔊';
+  } else {
+    audio.pause();
+    btn.textContent = '🔇';
+  }
+});
+
 let allProducts = [];
 let allCategories = [];
 let activeCategory = 'all';
@@ -913,6 +990,12 @@ function renderProducts(){
         <p>${escapeHTML(p.description)}</p>
       </div>`;
     }
+    const dateFmt = (ts) => new Date(ts).toLocaleDateString('ar-DZ', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const metaHTML = `
+      <div class="card-meta">
+        ${p.createdAt ? `<span class="meta-chip">📅 نزل: ${dateFmt(p.createdAt)}</span>` : ''}
+        ${p.expiresAt ? `<span class="meta-chip meta-expiry">⏳ ينتهي: ${dateFmt(p.expiresAt)}</span>` : ''}
+      </div>`;
     return `
     <div class="card">
       ${vipDeal ? `<span class="badge-vip-deal">👑 عرض VIP -90%</span>` : (!isFree && discount > 0 ? `<span class="badge-promo">خصم ${discount}%</span>` : '')}
@@ -921,6 +1004,7 @@ function renderProducts(){
       ${mediaHTML}
       <h3>${escapeHTML(p.name)}</h3>
       <p>${escapeHTML(p.description)}</p>
+      ${metaHTML}
       <div class="card-footer">
         <span class="price-wrap">${priceHTML}</span>
         <button class="like-btn ${liked ? 'liked' : ''}" data-like="${p.id}">${liked ? '❤️' : '🤍'} ${p.likes || 0}</button>
@@ -1324,6 +1408,10 @@ document.getElementById('productSearchInput').addEventListener('input', (e) => {
   renderProducts();
 });
 
+document.getElementById('unbanOkBtn').addEventListener('click', () => {
+  document.getElementById('unbanOverlay').classList.remove('show');
+});
+
 /* ---- Welcome splash ---- */
 function playGainSound(){
   try{
@@ -1421,6 +1509,7 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     }
   }
   playWelcomeChime();
+  startSiteMusic();
   document.getElementById('welcomeSplash').classList.add('hide');
 });
 
@@ -1435,6 +1524,7 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     await checkAccountStatus();
     await checkRegularAccountStatus();
     loadSocialLinks();
+    loadSiteMusic();
   } catch(e){
     document.getElementById('productGrid').innerHTML = '<div class="empty-state">صار خطأ بتحميل المتجر: ' + escapeHTML(e.message) + '</div>';
     return;

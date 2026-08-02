@@ -253,6 +253,14 @@ tr:last-child td{ border-bottom:none; }
       <div class="field"><label>Discord</label><input type="text" id="socDiscord" class="mono" placeholder="https://discord.gg/..."></div>
       <button class="btn btn-fire btn-block" id="saveSocialLinksBtn">حفظ الروابط</button>
     </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>🎵 موسيقى خلفية للموقع</h3>
+      <p style="color:var(--text-muted);font-size:13px;">حط رابط مباشر لملف صوت (mp3). راح تتشغل تلقائياً عند دخول أي زائر للموقع، وعندو زر يقدر يوقفها إذا بغى.</p>
+      <div id="siteMusicMsg"></div>
+      <div class="field"><label>رابط الأغنية (mp3)</label><input type="text" id="siteMusicUrl" class="mono" placeholder="https://.../song.mp3"></div>
+      <button class="btn btn-fire btn-block" id="saveSiteMusicBtn">حفظ الموسيقى</button>
+    </div>
   </div>
 </div>
 
@@ -343,14 +351,15 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
     db.collection('accountKeys').get(),
     db.collection('users').get(),
     db.collection('settings').doc('vipDeals').get(),
-    db.collection('settings').doc('socialLinks').get()
+    db.collection('settings').doc('socialLinks').get(),
+    db.collection('settings').doc('siteMusic').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -359,6 +368,7 @@ async function loadAll(){
   window.__users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   window.__vipDeals = vipDealsSnap.exists ? vipDealsSnap.data() : { productIds: [] };
   window.__socialLinks = socialLinksSnap.exists ? socialLinksSnap.data() : {};
+  document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   populateSocialLinksFields();
   populateCategorySelect();
   renderProductsTable();
@@ -517,7 +527,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
       msg.innerHTML = '<div class="msg ok">تم حفظ التعديلات بنجاح.</div>';
       exitEditMode();
     } else {
-      await db.collection('products').add({ ...data, likes: 0, purchaseCount: 0, unavailable: false });
+      await db.collection('products').add({ ...data, likes: 0, purchaseCount: 0, unavailable: false, createdAt: Date.now() });
       msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
       ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('pFree').checked = false;
@@ -742,7 +752,9 @@ async function toggleBanUser(userId){
   const user = (window.__users || []).find(u => u.id === userId);
   if (!user) return;
   const willBan = !user.banned;
-  await db.collection('users').doc(userId).update({ banned: willBan });
+  const update = { banned: willBan };
+  if (!willBan) update.unbanNotice = true;
+  await db.collection('users').doc(userId).update(update);
   const ips = Array.isArray(user.ips) ? user.ips : [];
   for (const ip of ips){
     try{
@@ -812,6 +824,18 @@ document.getElementById('saveSocialLinksBtn').addEventListener('click', async ()
   try{
     await db.collection('settings').doc('socialLinks').set(data);
     msg.innerHTML = '<div class="msg ok">تم حفظ الروابط بنجاح.</div>';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('saveSiteMusicBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('siteMusicMsg');
+  const url = document.getElementById('siteMusicUrl').value.trim();
+  try{
+    await db.collection('settings').doc('siteMusic').set({ url });
+    msg.innerHTML = '<div class="msg ok">تم حفظ الموسيقى بنجاح.</div>';
     await loadAll();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
