@@ -83,11 +83,49 @@ input[type=text]:focus{ outline:none; border-color:var(--gold-soft); }
 .pt-btn.disabled{ opacity:.35; cursor:not-allowed; }
 .result-card{
   display:none; background:#0d0e13; border:1px dashed var(--gold-soft); border-radius:16px;
-  padding:18px; text-align:center; margin-bottom:16px;
+  padding:18px; text-align:center; margin-bottom:16px; position:relative; overflow:visible;
 }
 .result-card.show{ display:block; }
 .result-card .code{ font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--gold); letter-spacing:.06em; word-break:break-all; }
 .result-card .pts{ font-size:13px; color:var(--text-muted); margin-top:4px; }
+
+/* ---- celebration animation on successful generation ---- */
+.result-card.celebrate{
+  animation: cardPop .5s cubic-bezier(.2,1.4,.4,1) both, glowPulse 1.1s ease-out .05s;
+  border-style:solid; border-color:var(--gold);
+}
+@keyframes cardPop{
+  0%{ transform:scale(.88); }
+  55%{ transform:scale(1.035); }
+  100%{ transform:scale(1); }
+}
+@keyframes glowPulse{
+  0%{ box-shadow:0 0 0 0 rgba(245,217,128,.55); }
+  100%{ box-shadow:0 0 0 26px rgba(245,217,128,0); }
+}
+.result-card.celebrate .code{
+  animation: codeReveal .5s ease .1s both;
+}
+@keyframes codeReveal{
+  0%{ opacity:0; letter-spacing:.3em; filter:blur(3px); }
+  100%{ opacity:1; letter-spacing:.06em; filter:blur(0); }
+}
+.spark-layer{
+  position:absolute; inset:0; pointer-events:none; overflow:visible;
+  display:flex; align-items:center; justify-content:center;
+}
+.spark{
+  position:absolute; top:50%; left:50%; width:7px; height:7px; border-radius:50%;
+  background:var(--gold); opacity:0;
+  animation: sparkFly .75s ease-out forwards;
+}
+.spark.blue{ background:var(--royal); }
+.spark.diamond{ border-radius:2px; transform:rotate(45deg); }
+@keyframes sparkFly{
+  0%{ opacity:1; transform:translate(-50%,-50%) translate(0,0) scale(1); }
+  100%{ opacity:0; transform:translate(-50%,-50%) translate(var(--dx), var(--dy)) scale(.3); }
+}
+
 .copy-row{ display:flex; gap:8px; margin-top:12px; }
 .copy-row .btn{ flex:1; padding:11px; font-size:13.5px; }
 .history{ margin-top:16px; }
@@ -162,6 +200,7 @@ input[type=text]:focus{ outline:none; border-color:var(--gold-soft); }
     </div>
 
     <div class="result-card" id="resultCard">
+      <div class="spark-layer" id="sparkLayer"></div>
       <div class="pts" id="resultPts"></div>
       <div class="code mono" id="resultCode"></div>
       <div class="copy-row">
@@ -193,7 +232,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const DAILY_CAP = 2000;
+let DAILY_CAP = 2000; // fallback default, overwritten by admin-controlled settings/generatorConfig
+async function loadDailyCap(){
+  try{
+    const snap = await db.collection('settings').doc('generatorConfig').get();
+    if (snap.exists && Number(snap.data().dailyCap) > 0){
+      DAILY_CAP = Number(snap.data().dailyCap);
+    }
+  } catch(e){}
+}
 const SESSION_KEY = 'aizaro_gen_key';
 const HISTORY_KEY = 'aizaro_gen_history';
 
@@ -246,6 +293,31 @@ function playErrorTone(){
   const t = ctx.currentTime;
   playTone(220, t, 0.22, 0.12, 'sawtooth');
 }
+
+function celebrateSuccess(){
+  const card = document.getElementById('resultCard');
+  const layer = document.getElementById('sparkLayer');
+  layer.innerHTML = '';
+  card.classList.remove('celebrate');
+  void card.offsetWidth; // restart animation if triggered again
+  card.classList.add('celebrate');
+
+  const count = 18;
+  for (let i = 0; i < count; i++){
+    const el = document.createElement('div');
+    const isDiamond = i % 4 === 0;
+    const isBlue = i % 3 === 0;
+    el.className = 'spark' + (isBlue ? ' blue' : '') + (isDiamond ? ' diamond' : '');
+    const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.4 - 0.2);
+    const dist = 70 + Math.random() * 55;
+    el.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    el.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+    el.style.animationDelay = (Math.random() * 0.08) + 's';
+    layer.appendChild(el);
+  }
+  setTimeout(() => { layer.innerHTML = ''; }, 900);
+}
+
 
 
 function genCode(){
@@ -421,6 +493,7 @@ async function generateCode(points){
 
   const activation = getSavedActivation();
   if (!activation){ location.reload(); return; }
+  await loadDailyCap();
 
   const maxPerCode = activation.maxPerCode || 1000;
   if (!Number.isFinite(points) || points < 1){
@@ -499,13 +572,14 @@ async function generateCode(points){
     document.getElementById('resultPts').textContent = `كود بقيمة ${points} نقطة`;
     document.getElementById('resultCode').textContent = code;
     document.getElementById('resultCard').classList.add('show');
+    celebrateSuccess();
     msg.innerHTML = '<div class="msg ok">تم توليد الكود بنجاح ✅</div>';
     playSuccessChime();
     document.getElementById('customAmount').value = '';
     await refreshQuota();
   } catch(e){
     const errMap = {
-      cap: 'وصلت للحد اليومي (2000 نقطة). حاول غدا.',
+      cap: `وصلت للحد اليومي (${DAILY_CAP} نقطة). حاول غدا.`,
       limitreached: 'وصلت للحد الأقصى لعدد الأكواد بهاذ المفتاح.',
       revoked: 'المفتاح تم إلغاؤه.',
       expired: 'انتهت صلاحية المفتاح.',
@@ -565,6 +639,7 @@ async function showGenerator(){
 }
 
 (async function init(){
+  await loadDailyCap();
   const activation = getSavedActivation();
   if (activation){
     const keyCheck = await verifyKey(activation.key);

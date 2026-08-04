@@ -256,6 +256,13 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="panel" id="genKeysPanel">
+    <div class="form-card" style="max-width:520px;margin-bottom:22px;">
+      <h3>🌍 الحد اليومي العام (لكل IP)</h3>
+      <p style="color:var(--text-muted);font-size:13px;">هاذ الحد يطبق على مجموع النقاط يلي يقدر أي IP يولدها فاليوم الواحد، بصرف النظر على المفتاح المستعمل.</p>
+      <div id="dailyCapMsg"></div>
+      <div class="field"><label>الحد اليومي (نقطة لكل IP)</label><input type="number" id="dailyCapInput" min="1" value="2000"></div>
+      <button class="btn btn-fire btn-block" id="saveDailyCapBtn">حفظ الحد اليومي</button>
+    </div>
     <div class="two-col">
       <div class="form-card">
         <h3>🔑 توليد مفتاح لمولّد الأكواد</h3>
@@ -402,7 +409,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -413,7 +420,8 @@ async function loadAll(){
     db.collection('settings').doc('siteMusic').get(),
     db.collection('modKeys').get(),
     db.collection('moderators').get(),
-    db.collection('genKeys').get()
+    db.collection('genKeys').get(),
+    db.collection('settings').doc('generatorConfig').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -425,6 +433,7 @@ async function loadAll(){
   window.__modKeys = modKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   window.__moderators = moderatorsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   window.__genKeys = genKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
+  document.getElementById('dailyCapInput').value = generatorConfigSnap.exists ? (Number(generatorConfigSnap.data().dailyCap) || 2000) : 2000;
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   populateSocialLinksFields();
   populateCategorySelect();
@@ -747,6 +756,17 @@ async function deleteAccountKeyRow(key){
 }
 
 /* ---------- Generator Keys ---------- */
+document.getElementById('saveDailyCapBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('dailyCapMsg');
+  const val = Math.max(1, Number(document.getElementById('dailyCapInput').value) || 2000);
+  try{
+    await db.collection('settings').doc('generatorConfig').set({ dailyCap: val }, { merge: true });
+    msg.innerHTML = `<div class="msg ok">تم حفظ الحد اليومي: ${val} نقطة لكل IP.</div>`;
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
 function genGenKeyCode(){ return 'AIZ-GEN-' + genCode().replace('AIZ-', ''); }
 
 function genKeyStatus(k){
