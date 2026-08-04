@@ -131,6 +131,7 @@ tr:last-child td{ border-bottom:none; }
     <button class="admin-tab" data-panel="accountKeysPanel">مفاتيح الحسابات</button>
     <button class="admin-tab" data-panel="accountsPanel">الحسابات</button>
     <button class="admin-tab" data-panel="moderatorsPanel">المشرفين</button>
+    <button class="admin-tab" data-panel="genKeysPanel">مفاتيح المولّد</button>
     <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
   </div>
 
@@ -254,6 +255,30 @@ tr:last-child td{ border-bottom:none; }
     </div>
   </div>
 
+  <div class="panel" id="genKeysPanel">
+    <div class="two-col">
+      <div class="form-card">
+        <h3>🔑 توليد مفتاح لمولّد الأكواد</h3>
+        <p style="color:var(--text-muted);font-size:13px;">هاذ المفتاح كيسمح لحامله يفتح موقع <span class="mono">generator.html</span> ويولّد أكواد نقاط (100 / 500 / 1000) لحد أقصى 2000 نقطة كل يوم لكل IP. المفتاح يخلص وحدو بعد المدة.</p>
+        <div id="genKeyMsg"></div>
+        <div class="field">
+          <label>مدة الصلاحية</label>
+          <select id="genKeyDays">
+            <option value="3">3 أيام</option>
+            <option value="7">7 أيام</option>
+          </select>
+        </div>
+        <button class="btn btn-fire btn-block" id="genGenKeyBtn">توليد مفتاح جديد</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>المفتاح</th><th>المدة</th><th>ينتهي في</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="genKeysTableBody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="panel" id="settingsPanel">
     <div class="form-card" style="max-width:420px;">
       <h3>تغيير كلمة مرور الإدارة</h3>
@@ -373,7 +398,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -383,7 +408,8 @@ async function loadAll(){
     db.collection('settings').doc('socialLinks').get(),
     db.collection('settings').doc('siteMusic').get(),
     db.collection('modKeys').get(),
-    db.collection('moderators').get()
+    db.collection('moderators').get(),
+    db.collection('genKeys').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -394,6 +420,7 @@ async function loadAll(){
   window.__socialLinks = socialLinksSnap.exists ? socialLinksSnap.data() : {};
   window.__modKeys = modKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   window.__moderators = moderatorsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  window.__genKeys = genKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   populateSocialLinksFields();
   populateCategorySelect();
@@ -404,6 +431,7 @@ async function loadAll(){
   renderUsersTable();
   renderModKeysTable();
   renderModeratorsTable();
+  renderGenKeysTable();
   populateVipDealSelects();
 }
 
@@ -713,6 +741,69 @@ async function deleteAccountKeyRow(key){
   await db.collection('accountKeys').doc(key).delete();
   await loadAll();
 }
+
+/* ---------- Generator Keys ---------- */
+function genGenKeyCode(){ return 'AIZ-GEN-' + genCode().replace('AIZ-', ''); }
+
+function genKeyStatus(k){
+  if (k.revoked) return { label:'ملغى', cls:'used' };
+  if (k.expiresAt && Date.now() > k.expiresAt) return { label:'منتهي', cls:'used' };
+  return { label:'نشط', cls:'unused' };
+}
+
+function renderGenKeysTable(){
+  const tbody = document.getElementById('genKeysTableBody');
+  const keys = (window.__genKeys || []).slice().sort((a, b) => (b.createdAt||0) - (a.createdAt||0));
+  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="5">ما في مفاتيح بعد.</td></tr>'; return; }
+  tbody.innerHTML = keys.map(k => {
+    const st = genKeyStatus(k);
+    const expiresLabel = k.expiresAt ? new Date(k.expiresAt).toLocaleString('ar') : '—';
+    return `
+    <tr>
+      <td class="code-mono">${escapeHTML(k.key)}</td>
+      <td>${k.days || '—'} أيام</td>
+      <td>${escapeHTML(expiresLabel)}</td>
+      <td><span class="tag ${st.cls}">${st.label}</span></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" data-copygenkey="${escapeHTML(k.key)}">نسخ</button>
+        ${!k.revoked ? `<button class="btn btn-ghost btn-sm" data-revokegenkey="${escapeHTML(k.key)}">إلغاء</button>` : ''}
+        <button class="btn btn-danger btn-sm" data-delgenkey="${escapeHTML(k.key)}" title="حذف">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-copygenkey]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copygenkey)));
+  tbody.querySelectorAll('[data-revokegenkey]').forEach(b => b.addEventListener('click', () => revokeGenKeyRow(b.dataset.revokegenkey)));
+  tbody.querySelectorAll('[data-delgenkey]').forEach(b => b.addEventListener('click', () => deleteGenKeyRow(b.dataset.delgenkey)));
+}
+
+async function revokeGenKeyRow(key){
+  if (!confirm('تلغي هاذ المفتاح؟ صاحبو ما يقدرش يستعمل المولّد بيه بعد.')) return;
+  await db.collection('genKeys').doc(key).update({ revoked: true });
+  await loadAll();
+}
+
+async function deleteGenKeyRow(key){
+  if (!confirm('تحذف هاذ المفتاح نهائياً؟')) return;
+  await db.collection('genKeys').doc(key).delete();
+  await loadAll();
+}
+
+document.getElementById('genGenKeyBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('genKeyMsg');
+  const days = Number(document.getElementById('genKeyDays').value) || 3;
+  const key = genGenKeyCode();
+  const now = Date.now();
+  try{
+    await db.collection('genKeys').doc(key).set({
+      days, revoked:false, createdAt: now, expiresAt: now + days * 86400000,
+      lastActivatedAt: null, lastActivatedIP: null
+    });
+    msg.innerHTML = `<div class="msg ok">تم توليد المفتاح (صالح ${days} أيام): <b class="code-mono">${escapeHTML(key)}</b></div>`;
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
 
 document.getElementById('genAccountKeyBtn').addEventListener('click', async () => {
   const msg = document.getElementById('accountKeyMsg');

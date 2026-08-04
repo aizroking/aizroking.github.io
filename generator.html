@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIZARO KING — مولّد الأكواد</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root{
+  --bg:#0a0b0f; --bg-elevated:#16181f; --bg-card:#141620;
+  --border:#2a2d38; --border-soft:#1d2029;
+  --gold:#f5d980; --gold-soft:#caa53d; --royal:#3b9dff;
+  --text:#f2f1ec; --text-muted:#9a9ca6; --radius:20px;
+  --danger:#ff3b30; --ok:#22c55e;
+  --shadow-lg:0 14px 46px rgba(0,0,0,.6);
+}
+*{ box-sizing:border-box; }
+html{ background:var(--bg); }
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:'IBM Plex Sans Arabic',-apple-system,BlinkMacSystemFont,sans-serif;
+  direction:rtl; -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(245,217,128,.10), transparent 60%),
+    radial-gradient(900px 600px at 110% 10%, rgba(59,157,255,.10), transparent 55%),
+    var(--bg);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.mono{ font-family:'JetBrains Mono',monospace; }
+.wrap{ width:100%; max-width:460px; }
+.brand{ text-align:center; margin-bottom:22px; }
+.brand .mark{ font-size:13px; letter-spacing:.12em; color:var(--gold); font-weight:700; text-transform:uppercase; }
+.brand h1{ margin:6px 0 0; font-size:22px; font-weight:700; }
+.card{
+  background:linear-gradient(180deg, var(--bg-card), #101219);
+  border:1px solid var(--border); border-radius:var(--radius);
+  padding:26px; box-shadow:var(--shadow-lg); position:relative; overflow:hidden;
+}
+.card::before{
+  content:''; position:absolute; inset:-2px; border-radius:inherit; padding:1px;
+  background:linear-gradient(120deg, rgba(245,217,128,.35), transparent 30%, transparent 70%, rgba(59,157,255,.25));
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;
+}
+.card h2{ margin:0 0 6px; font-size:18px; }
+.card p.hint{ margin:0 0 18px; color:var(--text-muted); font-size:13px; line-height:1.7; }
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:12.5px; color:var(--text-muted); margin-bottom:6px; }
+input[type=text]{
+  width:100%; padding:14px 16px; border-radius:14px; border:1px solid var(--border);
+  background:#0d0e13; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:15px;
+  text-align:center; letter-spacing:.04em; transition:border-color .15s ease;
+}
+input[type=text]:focus{ outline:none; border-color:var(--gold-soft); }
+.btn{
+  width:100%; border:none; border-radius:980px; padding:14px 18px; font-size:15px; font-weight:700;
+  font-family:'IBM Plex Sans Arabic',sans-serif; cursor:pointer; transition:transform .12s ease, opacity .12s ease;
+}
+.btn:active{ transform:scale(.97); }
+.btn:disabled{ opacity:.4; cursor:not-allowed; }
+.btn-gold{ background:linear-gradient(90deg,var(--gold-soft),var(--gold)); color:#1a1305; }
+.btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text-muted); }
+.msg{ border-radius:12px; padding:11px 14px; font-size:13.5px; margin-bottom:14px; line-height:1.6; }
+.msg.err{ background:#ff3b3018; color:#ff6b60; border:1px solid #ff3b3040; }
+.msg.ok{ background:#22c55e18; color:#4ade80; border:1px solid #22c55e40; }
+
+/* generator screen */
+.status-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border-soft); }
+.status-row .k{ font-size:12px; color:var(--text-muted); }
+.status-row .v{ font-size:14px; font-weight:700; color:var(--gold); }
+.quota-bar-track{ height:8px; border-radius:99px; background:#0d0e13; border:1px solid var(--border); overflow:hidden; margin-top:8px; }
+.quota-bar-fill{ height:100%; background:linear-gradient(90deg,var(--royal),var(--gold)); transition:width .25s ease; }
+.points-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:18px 0; }
+.pt-btn{
+  border:1px solid var(--border); background:#0d0e13; border-radius:16px; padding:16px 8px;
+  text-align:center; cursor:pointer; transition:transform .12s ease, border-color .12s ease, background .12s ease;
+}
+.pt-btn:active{ transform:scale(.95); }
+.pt-btn .n{ font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; color:var(--text); }
+.pt-btn .l{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+.pt-btn:not(.disabled):hover{ border-color:var(--gold-soft); }
+.pt-btn.disabled{ opacity:.35; cursor:not-allowed; }
+.result-card{
+  display:none; background:#0d0e13; border:1px dashed var(--gold-soft); border-radius:16px;
+  padding:18px; text-align:center; margin-bottom:16px;
+}
+.result-card.show{ display:block; }
+.result-card .code{ font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--gold); letter-spacing:.06em; word-break:break-all; }
+.result-card .pts{ font-size:13px; color:var(--text-muted); margin-top:4px; }
+.copy-row{ display:flex; gap:8px; margin-top:12px; }
+.copy-row .btn{ flex:1; padding:11px; font-size:13.5px; }
+.history{ margin-top:16px; }
+.history h4{ font-size:12px; color:var(--text-muted); margin:0 0 8px; font-weight:600; }
+.history ul{ list-style:none; margin:0; padding:0; max-height:160px; overflow-y:auto; }
+.history li{ display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:12.5px; padding:8px 10px; border-radius:10px; background:#0d0e13; margin-bottom:6px; }
+.history li span:last-child{ color:var(--gold); }
+.foot-link{ text-align:center; margin-top:14px; }
+.foot-link a{ color:var(--text-muted); font-size:12.5px; text-decoration:none; cursor:pointer; }
+.foot-link a:hover{ color:var(--gold); }
+.spinner{ display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#1a1305; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-left:6px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <div class="mark">AIZARO KING</div>
+    <h1>🔥 مولّد أكواد النقاط</h1>
+  </div>
+
+  <!-- Activation screen -->
+  <div class="card" id="activateCard">
+    <h2>تفعيل بمفتاح</h2>
+    <p class="hint">دخل المفتاح اللي عطاوهولك باش تفتح مولّد الأكواد. كل مفتاح عندو مدة صلاحية محددة من الإدارة.</p>
+    <div id="activateMsg"></div>
+    <div class="field">
+      <label>المفتاح</label>
+      <input type="text" id="keyInput" class="mono" placeholder="AIZ-GEN-XXXXXX" autocomplete="off">
+    </div>
+    <button class="btn btn-gold" id="activateBtn">تفعيل</button>
+  </div>
+
+  <!-- Generator screen -->
+  <div class="card" id="genCard" style="display:none;">
+    <div class="status-row">
+      <div>
+        <div class="k">المفتاح صالح لـ</div>
+        <div class="v" id="daysLeftLabel">—</div>
+      </div>
+      <div style="text-align:left;">
+        <div class="k">المستعمل اليوم</div>
+        <div class="v" id="quotaLabel">0 / 2000</div>
+      </div>
+    </div>
+    <div class="quota-bar-track"><div class="quota-bar-fill" id="quotaBar" style="width:0%;"></div></div>
+
+    <div id="genMsg" style="margin-top:16px;"></div>
+
+    <div class="points-grid" id="pointsGrid">
+      <div class="pt-btn" data-points="100"><div class="n">100</div><div class="l">نقطة</div></div>
+      <div class="pt-btn" data-points="500"><div class="n">500</div><div class="l">نقطة</div></div>
+      <div class="pt-btn" data-points="1000"><div class="n">1000</div><div class="l">نقطة</div></div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="pts" id="resultPts"></div>
+      <div class="code mono" id="resultCode"></div>
+      <div class="copy-row">
+        <button class="btn btn-gold" id="copyBtn">📋 نسخ الكود</button>
+      </div>
+    </div>
+
+    <div class="history" id="historyBox" style="display:none;">
+      <h4>أكواد ولّيتهم اليوم</h4>
+      <ul id="historyList"></ul>
+    </div>
+
+    <div class="foot-link"><a id="switchKeyBtn">تبديل المفتاح</a></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAgZ9Ma1iK1Q9gaTBsXFQRFAEd427i72GY",
+  authDomain: "azi-or-king.firebaseapp.com",
+  projectId: "azi-or-king",
+  storageBucket: "azi-or-king.firebasestorage.app",
+  messagingSenderId: "510389718529",
+  appId: "1:510389718529:web:f3dfd2e1e22c0a4ac67a00",
+  measurementId: "G-2L98HEYY9X"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const DAILY_CAP = 2000;
+const SESSION_KEY = 'aizaro_gen_key';
+const HISTORY_KEY = 'aizaro_gen_history';
+
+function escapeHTML(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+function todayStr(){ return new Date().toISOString().slice(0, 10); }
+
+function genCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 9; i++){ if (i === 4) s += '-'; s += chars[Math.floor(Math.random() * chars.length)]; }
+  return 'AIZ-' + s;
+}
+
+let currentClientIP = null;
+async function getPublicIP(){
+  if (currentClientIP) return currentClientIP;
+  try{
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    if (data.ip){ currentClientIP = data.ip; return data.ip; }
+  } catch(e){}
+  try{
+    const res2 = await fetch('https://api64.ipify.org?format=json');
+    const data2 = await res2.json();
+    if (data2.ip){ currentClientIP = data2.ip; return data2.ip; }
+  } catch(e){}
+  return null;
+}
+
+function getSavedActivation(){
+  try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e){ return null; }
+}
+function saveActivation(rec){ localStorage.setItem(SESSION_KEY, JSON.stringify(rec)); }
+function clearActivation(){ localStorage.removeItem(SESSION_KEY); }
+
+function getTodayHistory(){
+  try{
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+    return h[todayStr()] || [];
+  } catch(e){ return []; }
+}
+function addTodayHistory(code, points){
+  let h = {};
+  try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}'); } catch(e){}
+  const t = todayStr();
+  h[t] = h[t] || [];
+  h[t].push({ code, points, at: Date.now() });
+  // keep only today's key to avoid unbounded growth
+  localStorage.setItem(HISTORY_KEY, JSON.stringify({ [t]: h[t] }));
+}
+
+function renderHistory(){
+  const list = getTodayHistory();
+  const box = document.getElementById('historyBox');
+  const ul = document.getElementById('historyList');
+  if (list.length === 0){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  ul.innerHTML = list.slice().reverse().map(item =>
+    `<li><span>${escapeHTML(item.code)}</span><span>${item.points} نقطة</span></li>`
+  ).join('');
+}
+
+/* ---- Key activation ---- */
+async function verifyKey(rawKey){
+  const key = rawKey.trim().toUpperCase();
+  if (!key) return { ok:false, reason:'empty' };
+  const snap = await db.collection('genKeys').doc(key).get();
+  if (!snap.exists) return { ok:false, reason:'notfound' };
+  const data = snap.data();
+  if (data.revoked) return { ok:false, reason:'revoked' };
+  if (data.expiresAt && Date.now() > data.expiresAt) return { ok:false, reason:'expired' };
+  return { ok:true, key, expiresAt: data.expiresAt, days: data.days };
+}
+
+document.getElementById('activateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('activateBtn');
+  const msg = document.getElementById('activateMsg');
+  const input = document.getElementById('keyInput');
+  msg.innerHTML = '';
+  const raw = input.value.trim();
+  if (!raw){ msg.innerHTML = '<div class="msg err">دخل المفتاح.</div>'; return; }
+  btn.disabled = true; btn.innerHTML = 'جاري التحقق...<span class="spinner"></span>';
+  try{
+    const result = await verifyKey(raw);
+    if (!result.ok){
+      const map = {
+        notfound: 'هاذ المفتاح مش موجود.',
+        revoked: 'تم إلغاء هاذ المفتاح من طرف الإدارة.',
+        expired: 'انتهت صلاحية هاذ المفتاح.',
+        empty: 'دخل المفتاح.'
+      };
+      msg.innerHTML = `<div class="msg err">${map[result.reason] || 'مفتاح غير صالح.'}</div>`;
+      btn.disabled = false; btn.textContent = 'تفعيل';
+      return;
+    }
+    const ip = await getPublicIP();
+    // record first activation info (best-effort, doesn't restrict device)
+    db.collection('genKeys').doc(result.key).update({
+      lastActivatedAt: Date.now(),
+      lastActivatedIP: ip || null
+    }).catch(()=>{});
+    saveActivation({ key: result.key, expiresAt: result.expiresAt, days: result.days });
+    showGenerator();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ، جرب مرة أخرى.</div>';
+    btn.disabled = false; btn.textContent = 'تفعيل';
+  }
+});
+document.getElementById('keyInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('activateBtn').click();
+});
+document.getElementById('switchKeyBtn').addEventListener('click', () => {
+  clearActivation();
+  document.getElementById('genCard').style.display = 'none';
+  document.getElementById('activateCard').style.display = 'block';
+  document.getElementById('keyInput').value = '';
+  document.getElementById('activateBtn').disabled = false;
+  document.getElementById('activateBtn').textContent = 'تفعيل';
+});
+
+/* ---- Generator screen ---- */
+async function getRemainingQuota(){
+  const ip = await getPublicIP();
+  if (!ip) return { ip:null, used:0, remaining:DAILY_CAP };
+  const docId = ip + '_' + todayStr();
+  try{
+    const snap = await db.collection('genQuota').doc(docId).get();
+    const used = snap.exists ? (Number(snap.data().totalPoints) || 0) : 0;
+    return { ip, used, remaining: Math.max(0, DAILY_CAP - used) };
+  } catch(e){
+    return { ip, used:0, remaining:DAILY_CAP };
+  }
+}
+
+function updateQuotaUI(used, remaining){
+  document.getElementById('quotaLabel').textContent = `${used} / ${DAILY_CAP}`;
+  document.getElementById('quotaBar').style.width = Math.min(100, (used / DAILY_CAP) * 100) + '%';
+  document.querySelectorAll('.pt-btn').forEach(el => {
+    const pts = Number(el.dataset.points);
+    el.classList.toggle('disabled', pts > remaining);
+  });
+}
+
+async function refreshQuota(){
+  const { used, remaining } = await getRemainingQuota();
+  updateQuotaUI(used, remaining);
+  return remaining;
+}
+
+async function generateCode(points){
+  const msg = document.getElementById('genMsg');
+  msg.innerHTML = '';
+  document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'none');
+
+  const activation = getSavedActivation();
+  if (!activation){ location.reload(); return; }
+
+  // re-verify key hasn't been revoked/expired since activation
+  const keyCheck = await verifyKey(activation.key);
+  if (!keyCheck.ok){
+    msg.innerHTML = '<div class="msg err">المفتاح ماعادش صالح. لازم تبدل مفتاح.</div>';
+    document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+    setTimeout(() => document.getElementById('switchKeyBtn').click(), 1600);
+    return;
+  }
+
+  const ip = await getPublicIP();
+  if (!ip){
+    msg.innerHTML = '<div class="msg err">ما قدرناش نتعرفو على الـ IP تاعك، جرب مرة أخرى.</div>';
+    document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+    return;
+  }
+
+  const quotaRef = db.collection('genQuota').doc(ip + '_' + todayStr());
+  const code = genCode();
+  const codeRef = db.collection('codes').doc(code);
+
+  try{
+    await db.runTransaction(async (tx) => {
+      const quotaSnap = await tx.get(quotaRef);
+      const used = quotaSnap.exists ? (Number(quotaSnap.data().totalPoints) || 0) : 0;
+      if (used + points > DAILY_CAP){
+        throw new Error('cap');
+      }
+      tx.set(quotaRef, { ip, date: todayStr(), totalPoints: used + points }, { merge: true });
+      tx.set(codeRef, {
+        points, used:false, maxUses:1, usesCount:0,
+        durationDays:null, expiresAt:null, createdAt: Date.now(),
+        source:'generator', genKey: activation.key
+      });
+    });
+
+    addTodayHistory(code, points);
+    renderHistory();
+    document.getElementById('resultPts').textContent = `كود بقيمة ${points} نقطة`;
+    document.getElementById('resultCode').textContent = code;
+    document.getElementById('resultCard').classList.add('show');
+    msg.innerHTML = '<div class="msg ok">تم توليد الكود بنجاح ✅</div>';
+    await refreshQuota();
+  } catch(e){
+    if (e.message === 'cap'){
+      msg.innerHTML = '<div class="msg err">وصلت للحد اليومي (2000 نقطة). حاول غدا.</div>';
+      await refreshQuota();
+    } else {
+      msg.innerHTML = '<div class="msg err">صار خطأ، جرب مرة أخرى.</div>';
+    }
+  }
+  document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+}
+
+document.getElementById('pointsGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.pt-btn');
+  if (!btn || btn.classList.contains('disabled')) return;
+  generateCode(Number(btn.dataset.points));
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const code = document.getElementById('resultCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const original = btn.textContent;
+    btn.textContent = '✅ نُسخ';
+    setTimeout(() => btn.textContent = original, 1400);
+  });
+});
+
+function formatDaysLeft(expiresAt){
+  if (!expiresAt) return '—';
+  const ms = expiresAt - Date.now();
+  if (ms <= 0) return 'منتهي';
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days > 0) return `${days} يوم و ${hours} سا`;
+  return `${hours} سا`;
+}
+
+async function showGenerator(){
+  document.getElementById('activateCard').style.display = 'none';
+  document.getElementById('genCard').style.display = 'block';
+  const activation = getSavedActivation();
+  document.getElementById('daysLeftLabel').textContent = formatDaysLeft(activation.expiresAt);
+  renderHistory();
+  await refreshQuota();
+}
+
+(async function init(){
+  const activation = getSavedActivation();
+  if (activation){
+    const keyCheck = await verifyKey(activation.key);
+    if (keyCheck.ok){
+      saveActivation({ key: keyCheck.key, expiresAt: keyCheck.expiresAt, days: keyCheck.days });
+      showGenerator();
+      return;
+    }
+    clearActivation();
+  }
+  document.getElementById('activateCard').style.display = 'block';
+})();
+</script>
+</body>
+</html>
