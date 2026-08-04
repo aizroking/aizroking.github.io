@@ -249,8 +249,8 @@ tr:last-child td{ border-bottom:none; }
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>اسم المشرف</th><th>عدد المنتجات المضافة</th><th>الحالة</th><th></th></tr></thead>
-        <tbody id="moderatorsTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        <thead><tr><th>اسم المشرف</th><th>رابط صفحته</th><th>عدد المنتجات المضافة</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="moderatorsTableBody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -310,6 +310,15 @@ tr:last-child td{ border-bottom:none; }
       <div class="field"><label>YouTube</label><input type="text" id="socYoutube" class="mono" placeholder="https://youtube.com/..."></div>
       <div class="field"><label>Discord</label><input type="text" id="socDiscord" class="mono" placeholder="https://discord.gg/..."></div>
       <button class="btn btn-fire btn-block" id="saveSocialLinksBtn">حفظ الروابط</button>
+    </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>👤 صاحب الإدارة (Oussi)</h3>
+      <p style="color:var(--text-muted);font-size:13px;">هاد الاسم والرابط بيبانو تحت أي منتج زدتيه إنت شخصياً من لوحة الإدارة (يعني مش مضاف من مشرف). إذا مستخدم ضغط على صورة أو اسم المنتج بيروح لهاد الرابط.</p>
+      <div id="ownerLinkMsg"></div>
+      <div class="field"><label>الاسم اللي بيبان</label><input type="text" id="ownerName" placeholder="Oussi"></div>
+      <div class="field"><label>الرابط</label><input type="url" id="ownerLink" class="mono" placeholder="https://t.me/oussi"></div>
+      <button class="btn btn-fire btn-block" id="saveOwnerLinkBtn">حفظ</button>
     </div>
 
     <div class="form-card" style="max-width:420px;margin-top:22px;">
@@ -433,7 +442,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -446,7 +455,8 @@ async function loadAll(){
     db.collection('moderators').get(),
     db.collection('genKeys').get(),
     db.collection('settings').doc('generatorConfig').get(),
-    db.collection('settings').doc('customFonts').get()
+    db.collection('settings').doc('customFonts').get(),
+    db.collection('settings').doc('ownerLink').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -462,6 +472,9 @@ async function loadAll(){
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
+  const ownerLinkData = ownerLinkSnap.exists ? ownerLinkSnap.data() : {};
+  document.getElementById('ownerName').value = ownerLinkData.name || '';
+  document.getElementById('ownerLink').value = ownerLinkData.link || '';
   populateSocialLinksFields();
   populateCategorySelect();
   renderProductsTable();
@@ -1001,13 +1014,19 @@ document.getElementById('genModKeyBtn').addEventListener('click', async () => {
 function renderModeratorsTable(){
   const tbody = document.getElementById('moderatorsTableBody');
   const mods = window.__moderators || [];
-  if (mods.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما في مشرفين بعد.</td></tr>'; return; }
+  if (mods.length === 0){ tbody.innerHTML = '<tr><td colspan="5">ما في مشرفين بعد.</td></tr>'; return; }
   tbody.innerHTML = mods.map(m => {
     const count = (allProducts || []).filter(p => p.addedBy === m.id).length;
     const active = m.active !== false;
     return `
     <tr>
       <td>${escapeHTML(m.username)}</td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="url" class="mod-link-input" data-modlink="${m.id}" value="${escapeHTML(m.link || '')}" placeholder="https://t.me/username" style="min-width:160px;">
+          <button class="btn btn-fire btn-sm" data-savemodlink="${m.id}">حفظ</button>
+        </div>
+      </td>
       <td>${count}</td>
       <td><span class="tag ${active ? 'unused' : 'used'}">${active ? 'نشط' : 'موقوف'}</span></td>
       <td class="row-actions">
@@ -1016,6 +1035,21 @@ function renderModeratorsTable(){
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-toggleactive]').forEach(b => b.addEventListener('click', () => toggleModeratorActive(b.dataset.toggleactive)));
+  tbody.querySelectorAll('[data-savemodlink]').forEach(b => b.addEventListener('click', () => saveModeratorLink(b.dataset.savemodlink)));
+}
+
+async function saveModeratorLink(modId){
+  const input = document.querySelector(`[data-modlink="${modId}"]`);
+  const link = (input.value || '').trim();
+  try{
+    await db.collection('moderators').doc(modId).update({ link });
+    if (window.__moderators){
+      const m = window.__moderators.find(x => x.id === modId);
+      if (m) m.link = link;
+    }
+  } catch(e){
+    alert('صار خطأ بحفظ الرابط: ' + e.message);
+  }
 }
 
 async function toggleModeratorActive(modId){
@@ -1079,6 +1113,18 @@ document.getElementById('saveSocialLinksBtn').addEventListener('click', async ()
     await db.collection('settings').doc('socialLinks').set(data);
     msg.innerHTML = '<div class="msg ok">تم حفظ الروابط بنجاح.</div>';
     await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('saveOwnerLinkBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('ownerLinkMsg');
+  const name = document.getElementById('ownerName').value.trim();
+  const link = document.getElementById('ownerLink').value.trim();
+  try{
+    await db.collection('settings').doc('ownerLink').set({ name, link });
+    msg.innerHTML = '<div class="msg ok">تم الحفظ بنجاح.</div>';
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
