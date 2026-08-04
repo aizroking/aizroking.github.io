@@ -130,7 +130,16 @@ input[type=text]:focus{ outline:none; border-color:var(--gold-soft); }
         <div class="v" id="daysLeftLabel">—</div>
       </div>
       <div style="text-align:left;">
-        <div class="k">المستعمل اليوم</div>
+        <div class="k">الأكواد (استُعمل/الحد)</div>
+        <div class="v" id="genCountLabel">0 / 0</div>
+      </div>
+    </div>
+
+    <div class="status-row" style="border-bottom:none; margin-bottom:8px; padding-bottom:0;">
+      <div>
+        <div class="k">المستعمل اليوم (نقاط)</div>
+      </div>
+      <div style="text-align:left;">
         <div class="v" id="quotaLabel">0 / 2000</div>
       </div>
     </div>
@@ -142,6 +151,14 @@ input[type=text]:focus{ outline:none; border-color:var(--gold-soft); }
       <div class="pt-btn" data-points="100"><div class="n">100</div><div class="l">نقطة</div></div>
       <div class="pt-btn" data-points="500"><div class="n">500</div><div class="l">نقطة</div></div>
       <div class="pt-btn" data-points="1000"><div class="n">1000</div><div class="l">نقطة</div></div>
+    </div>
+
+    <div class="field" style="margin-top:4px;">
+      <label>ولا حط مبلغ مخصص (الأقصى: <span id="maxPerCodeLabel">1000</span>)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" inputmode="numeric" id="customAmount" class="mono" placeholder="مثلاً: 250" style="flex:1;">
+        <button class="btn btn-gold" id="customGenBtn" style="width:auto; padding:12px 20px;">توليد</button>
+      </div>
     </div>
 
     <div class="result-card" id="resultCard">
@@ -182,6 +199,54 @@ const HISTORY_KEY = 'aizaro_gen_history';
 
 function escapeHTML(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 function todayStr(){ return new Date().toISOString().slice(0, 10); }
+
+/* ---- Pleasant synthesized sounds (no external files needed) ---- */
+let audioCtx = null;
+function getAudioCtx(){
+  if (!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+  return audioCtx;
+}
+function playTone(freq, startTime, duration, gainPeak, type){
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(gainPeak, startTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.05);
+}
+function playSuccessChime(){
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  // bright ascending coin-like arpeggio
+  playTone(783.99, t, 0.16, 0.16, 'triangle');       // G5
+  playTone(987.77, t + 0.09, 0.16, 0.15, 'triangle'); // B5
+  playTone(1318.51, t + 0.18, 0.28, 0.14, 'triangle');// E6
+}
+function playActivateChime(){
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  playTone(523.25, t, 0.18, 0.14, 'sine');   // C5
+  playTone(659.25, t + 0.1, 0.22, 0.13, 'sine'); // E5
+}
+function playErrorTone(){
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  playTone(220, t, 0.22, 0.12, 'sawtooth');
+}
+
 
 function genCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -248,7 +313,16 @@ async function verifyKey(rawKey){
   const data = snap.data();
   if (data.revoked) return { ok:false, reason:'revoked' };
   if (data.expiresAt && Date.now() > data.expiresAt) return { ok:false, reason:'expired' };
-  return { ok:true, key, expiresAt: data.expiresAt, days: data.days };
+  const generationLimit = Number(data.generationLimit) || 0;
+  const generatedCount = Number(data.generatedCount) || 0;
+  if (generationLimit && generatedCount >= generationLimit) return { ok:false, reason:'limitreached' };
+  return {
+    ok:true, key, expiresAt: data.expiresAt, days: data.days,
+    maxPerCode: Math.min(1000, Number(data.maxPerCode) || 1000),
+    maxUses: Number(data.maxUses) || 1,
+    codeExpiryDays: data.codeExpiryDays || null,
+    generationLimit, generatedCount
+  };
 }
 
 document.getElementById('activateBtn').addEventListener('click', async () => {
@@ -266,9 +340,11 @@ document.getElementById('activateBtn').addEventListener('click', async () => {
         notfound: 'هاذ المفتاح مش موجود.',
         revoked: 'تم إلغاء هاذ المفتاح من طرف الإدارة.',
         expired: 'انتهت صلاحية هاذ المفتاح.',
+        limitreached: 'هاذ المفتاح وصل للحد الأقصى لعدد الأكواد اللي يقدر يولّدهم.',
         empty: 'دخل المفتاح.'
       };
       msg.innerHTML = `<div class="msg err">${map[result.reason] || 'مفتاح غير صالح.'}</div>`;
+      playErrorTone();
       btn.disabled = false; btn.textContent = 'تفعيل';
       return;
     }
@@ -278,7 +354,12 @@ document.getElementById('activateBtn').addEventListener('click', async () => {
       lastActivatedAt: Date.now(),
       lastActivatedIP: ip || null
     }).catch(()=>{});
-    saveActivation({ key: result.key, expiresAt: result.expiresAt, days: result.days });
+    saveActivation({
+      key: result.key, expiresAt: result.expiresAt, days: result.days,
+      maxPerCode: result.maxPerCode, maxUses: result.maxUses,
+      codeExpiryDays: result.codeExpiryDays, generationLimit: result.generationLimit
+    });
+    playActivateChime();
     showGenerator();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ، جرب مرة أخرى.</div>';
@@ -311,18 +392,24 @@ async function getRemainingQuota(){
   }
 }
 
-function updateQuotaUI(used, remaining){
+function updateQuotaUI(used, remaining, activation){
   document.getElementById('quotaLabel').textContent = `${used} / ${DAILY_CAP}`;
   document.getElementById('quotaBar').style.width = Math.min(100, (used / DAILY_CAP) * 100) + '%';
+  const maxPerCode = activation.maxPerCode || 1000;
   document.querySelectorAll('.pt-btn').forEach(el => {
     const pts = Number(el.dataset.points);
-    el.classList.toggle('disabled', pts > remaining);
+    el.classList.toggle('disabled', pts > remaining || pts > maxPerCode);
   });
 }
 
 async function refreshQuota(){
+  const activation = getSavedActivation();
   const { used, remaining } = await getRemainingQuota();
-  updateQuotaUI(used, remaining);
+  updateQuotaUI(used, remaining, activation || {});
+  const genLimit = Number(activation && activation.generationLimit) || 0;
+  const keySnap = await db.collection('genKeys').doc(activation.key).get().catch(()=>null);
+  const generatedCount = keySnap && keySnap.exists ? (Number(keySnap.data().generatedCount) || 0) : 0;
+  document.getElementById('genCountLabel').textContent = `${generatedCount} / ${genLimit}`;
   return remaining;
 }
 
@@ -330,16 +417,42 @@ async function generateCode(points){
   const msg = document.getElementById('genMsg');
   msg.innerHTML = '';
   document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'none');
+  document.getElementById('customGenBtn').disabled = true;
 
   const activation = getSavedActivation();
   if (!activation){ location.reload(); return; }
 
-  // re-verify key hasn't been revoked/expired since activation
+  const maxPerCode = activation.maxPerCode || 1000;
+  if (!Number.isFinite(points) || points < 1){
+    msg.innerHTML = '<div class="msg err">دخل مبلغ صحيح.</div>';
+    playErrorTone();
+    document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+    document.getElementById('customGenBtn').disabled = false;
+    return;
+  }
+  if (points > maxPerCode){
+    msg.innerHTML = `<div class="msg err">أقصى نقاط للكود الواحد هو ${maxPerCode}.</div>`;
+    playErrorTone();
+    document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+    document.getElementById('customGenBtn').disabled = false;
+    return;
+  }
+
+  // re-verify key hasn't been revoked/expired/limit-reached since activation
   const keyCheck = await verifyKey(activation.key);
   if (!keyCheck.ok){
-    msg.innerHTML = '<div class="msg err">المفتاح ماعادش صالح. لازم تبدل مفتاح.</div>';
+    const map = {
+      revoked: 'المفتاح تم إلغاؤه.',
+      expired: 'انتهت صلاحية المفتاح.',
+      limitreached: 'وصلت للحد الأقصى لعدد الأكواد بهاذ المفتاح.'
+    };
+    msg.innerHTML = `<div class="msg err">${map[keyCheck.reason] || 'المفتاح ماعادش صالح.'}</div>`;
+    playErrorTone();
     document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
-    setTimeout(() => document.getElementById('switchKeyBtn').click(), 1600);
+    document.getElementById('customGenBtn').disabled = false;
+    if (keyCheck.reason === 'revoked' || keyCheck.reason === 'expired'){
+      setTimeout(() => document.getElementById('switchKeyBtn').click(), 1600);
+    }
     return;
   }
 
@@ -347,24 +460,36 @@ async function generateCode(points){
   if (!ip){
     msg.innerHTML = '<div class="msg err">ما قدرناش نتعرفو على الـ IP تاعك، جرب مرة أخرى.</div>';
     document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+    document.getElementById('customGenBtn').disabled = false;
     return;
   }
 
   const quotaRef = db.collection('genQuota').doc(ip + '_' + todayStr());
+  const keyRef = db.collection('genKeys').doc(activation.key);
   const code = genCode();
   const codeRef = db.collection('codes').doc(code);
+  const codeExpiresAt = activation.codeExpiryDays ? Date.now() + Number(activation.codeExpiryDays) * 86400000 : null;
 
   try{
     await db.runTransaction(async (tx) => {
       const quotaSnap = await tx.get(quotaRef);
+      const keySnap = await tx.get(keyRef);
+      if (!keySnap.exists) throw new Error('keygone');
+      const keyData = keySnap.data();
+      if (keyData.revoked) throw new Error('revoked');
+      if (keyData.expiresAt && Date.now() > keyData.expiresAt) throw new Error('expired');
+      const genLimit = Number(keyData.generationLimit) || 0;
+      const genCount = Number(keyData.generatedCount) || 0;
+      if (genLimit && genCount >= genLimit) throw new Error('limitreached');
+
       const used = quotaSnap.exists ? (Number(quotaSnap.data().totalPoints) || 0) : 0;
-      if (used + points > DAILY_CAP){
-        throw new Error('cap');
-      }
+      if (used + points > DAILY_CAP) throw new Error('cap');
+
       tx.set(quotaRef, { ip, date: todayStr(), totalPoints: used + points }, { merge: true });
+      tx.update(keyRef, { generatedCount: genCount + 1 });
       tx.set(codeRef, {
-        points, used:false, maxUses:1, usesCount:0,
-        durationDays:null, expiresAt:null, createdAt: Date.now(),
+        points, used:false, maxUses: activation.maxUses || 1, usesCount:0,
+        durationDays:null, expiresAt: codeExpiresAt, createdAt: Date.now(),
         source:'generator', genKey: activation.key
       });
     });
@@ -375,22 +500,38 @@ async function generateCode(points){
     document.getElementById('resultCode').textContent = code;
     document.getElementById('resultCard').classList.add('show');
     msg.innerHTML = '<div class="msg ok">تم توليد الكود بنجاح ✅</div>';
+    playSuccessChime();
+    document.getElementById('customAmount').value = '';
     await refreshQuota();
   } catch(e){
-    if (e.message === 'cap'){
-      msg.innerHTML = '<div class="msg err">وصلت للحد اليومي (2000 نقطة). حاول غدا.</div>';
-      await refreshQuota();
-    } else {
-      msg.innerHTML = '<div class="msg err">صار خطأ، جرب مرة أخرى.</div>';
-    }
+    const errMap = {
+      cap: 'وصلت للحد اليومي (2000 نقطة). حاول غدا.',
+      limitreached: 'وصلت للحد الأقصى لعدد الأكواد بهاذ المفتاح.',
+      revoked: 'المفتاح تم إلغاؤه.',
+      expired: 'انتهت صلاحية المفتاح.',
+      keygone: 'المفتاح ماعادش موجود.'
+    };
+    msg.innerHTML = `<div class="msg err">${errMap[e.message] || 'صار خطأ، جرب مرة أخرى.'}</div>`;
+    playErrorTone();
+    await refreshQuota();
   }
   document.querySelectorAll('.pt-btn').forEach(el => el.style.pointerEvents = 'auto');
+  document.getElementById('customGenBtn').disabled = false;
 }
 
 document.getElementById('pointsGrid').addEventListener('click', (e) => {
   const btn = e.target.closest('.pt-btn');
   if (!btn || btn.classList.contains('disabled')) return;
   generateCode(Number(btn.dataset.points));
+});
+
+document.getElementById('customGenBtn').addEventListener('click', () => {
+  const raw = document.getElementById('customAmount').value.trim();
+  const val = Math.floor(Number(raw));
+  generateCode(val);
+});
+document.getElementById('customAmount').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('customGenBtn').click();
 });
 
 document.getElementById('copyBtn').addEventListener('click', () => {
@@ -418,6 +559,7 @@ async function showGenerator(){
   document.getElementById('genCard').style.display = 'block';
   const activation = getSavedActivation();
   document.getElementById('daysLeftLabel').textContent = formatDaysLeft(activation.expiresAt);
+  document.getElementById('maxPerCodeLabel').textContent = activation.maxPerCode || 1000;
   renderHistory();
   await refreshQuota();
 }
@@ -427,7 +569,11 @@ async function showGenerator(){
   if (activation){
     const keyCheck = await verifyKey(activation.key);
     if (keyCheck.ok){
-      saveActivation({ key: keyCheck.key, expiresAt: keyCheck.expiresAt, days: keyCheck.days });
+      saveActivation({
+        key: keyCheck.key, expiresAt: keyCheck.expiresAt, days: keyCheck.days,
+        maxPerCode: keyCheck.maxPerCode, maxUses: keyCheck.maxUses,
+        codeExpiryDays: keyCheck.codeExpiryDays, generationLimit: keyCheck.generationLimit
+      });
       showGenerator();
       return;
     }

@@ -259,21 +259,25 @@ tr:last-child td{ border-bottom:none; }
     <div class="two-col">
       <div class="form-card">
         <h3>🔑 توليد مفتاح لمولّد الأكواد</h3>
-        <p style="color:var(--text-muted);font-size:13px;">هاذ المفتاح كيسمح لحامله يفتح موقع <span class="mono">generator.html</span> ويولّد أكواد نقاط (100 / 500 / 1000) لحد أقصى 2000 نقطة كل يوم لكل IP. المفتاح يخلص وحدو بعد المدة.</p>
+        <p style="color:var(--text-muted);font-size:13px;">هاذ المفتاح كيسمح لحامله يفتح موقع <span class="mono">generator.html</span> ويولّد أكواد نقاط. أنت كإدارة تحدد كل القيود.</p>
         <div id="genKeyMsg"></div>
         <div class="field">
-          <label>مدة الصلاحية</label>
+          <label>مدة صلاحية المفتاح نفسو</label>
           <select id="genKeyDays">
             <option value="3">3 أيام</option>
             <option value="7">7 أيام</option>
           </select>
         </div>
+        <div class="field"><label>أقصى نقاط للكود الواحد (حد أقصى مطلق: 1000)</label><input type="number" id="genKeyMaxPerCode" min="1" max="1000" value="1000"></div>
+        <div class="field"><label>عدد الأشخاص المسموح لهم يستخدموا كل كود</label><input type="number" id="genKeyMaxUses" min="1" value="1"></div>
+        <div class="field"><label>صلاحية كل كود بالأيام (اختياري — فارغ = بلا انتهاء)</label><input type="number" id="genKeyCodeExpiry" min="1" placeholder="مثال: 30"></div>
+        <div class="field"><label>الحد الأقصى لعدد الأكواد يقدر يولّدهم هاذ المفتاح كامل</label><input type="number" id="genKeyGenLimit" min="1" value="50"></div>
         <button class="btn btn-fire btn-block" id="genGenKeyBtn">توليد مفتاح جديد</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>المفتاح</th><th>المدة</th><th>ينتهي في</th><th>الحالة</th><th></th></tr></thead>
-          <tbody id="genKeysTableBody"><tr><td colspan="5">جاري التحميل...</td></tr></tbody>
+          <thead><tr><th>المفتاح</th><th>المدة</th><th>أقصى/كود</th><th>استخدام/كود</th><th>الأكواد (استُعمل/الحد)</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="genKeysTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -748,21 +752,25 @@ function genGenKeyCode(){ return 'AIZ-GEN-' + genCode().replace('AIZ-', ''); }
 function genKeyStatus(k){
   if (k.revoked) return { label:'ملغى', cls:'used' };
   if (k.expiresAt && Date.now() > k.expiresAt) return { label:'منتهي', cls:'used' };
+  if ((Number(k.generatedCount)||0) >= (Number(k.generationLimit)||0)) return { label:'وصل للحد', cls:'used' };
   return { label:'نشط', cls:'unused' };
 }
 
 function renderGenKeysTable(){
   const tbody = document.getElementById('genKeysTableBody');
   const keys = (window.__genKeys || []).slice().sort((a, b) => (b.createdAt||0) - (a.createdAt||0));
-  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="5">ما في مفاتيح بعد.</td></tr>'; return; }
+  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="7">ما في مفاتيح بعد.</td></tr>'; return; }
   tbody.innerHTML = keys.map(k => {
     const st = genKeyStatus(k);
-    const expiresLabel = k.expiresAt ? new Date(k.expiresAt).toLocaleString('ar') : '—';
+    const used = Number(k.generatedCount) || 0;
+    const limit = Number(k.generationLimit) || 0;
     return `
     <tr>
       <td class="code-mono">${escapeHTML(k.key)}</td>
       <td>${k.days || '—'} أيام</td>
-      <td>${escapeHTML(expiresLabel)}</td>
+      <td>${Number(k.maxPerCode) || 1000}</td>
+      <td>${Number(k.maxUses) || 1}</td>
+      <td>${used} / ${limit}</td>
       <td><span class="tag ${st.cls}">${st.label}</span></td>
       <td style="white-space:nowrap;">
         <button class="btn btn-ghost btn-sm" data-copygenkey="${escapeHTML(k.key)}">نسخ</button>
@@ -791,14 +799,20 @@ async function deleteGenKeyRow(key){
 document.getElementById('genGenKeyBtn').addEventListener('click', async () => {
   const msg = document.getElementById('genKeyMsg');
   const days = Number(document.getElementById('genKeyDays').value) || 3;
+  const maxPerCode = Math.min(1000, Math.max(1, Number(document.getElementById('genKeyMaxPerCode').value) || 1000));
+  const maxUses = Math.max(1, Number(document.getElementById('genKeyMaxUses').value) || 1);
+  const codeExpiryDaysRaw = document.getElementById('genKeyCodeExpiry').value;
+  const codeExpiryDays = codeExpiryDaysRaw ? Math.max(1, Number(codeExpiryDaysRaw)) : null;
+  const generationLimit = Math.max(1, Number(document.getElementById('genKeyGenLimit').value) || 50);
   const key = genGenKeyCode();
   const now = Date.now();
   try{
     await db.collection('genKeys').doc(key).set({
       days, revoked:false, createdAt: now, expiresAt: now + days * 86400000,
+      maxPerCode, maxUses, codeExpiryDays, generationLimit, generatedCount: 0,
       lastActivatedAt: null, lastActivatedIP: null
     });
-    msg.innerHTML = `<div class="msg ok">تم توليد المفتاح (صالح ${days} أيام): <b class="code-mono">${escapeHTML(key)}</b></div>`;
+    msg.innerHTML = `<div class="msg ok">تم توليد المفتاح (صالح ${days} أيام، حد ${generationLimit} كود): <b class="code-mono">${escapeHTML(key)}</b></div>`;
     await loadAll();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
