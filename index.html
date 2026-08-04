@@ -1522,9 +1522,8 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   logoutAccount();
-  applyVipTheme();
-  renderProducts();
   closeModal('accountOverlay');
+  location.href = './';
 });
 
 document.getElementById('walletArrowBtn').addEventListener('click', () => {
