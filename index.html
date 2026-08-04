@@ -1118,6 +1118,7 @@ async function loadCustomFonts(){
   } catch(e){ /* fall back silently to default fonts */ }
 }
 
+let userGestureReceived = false;
 async function loadSiteMusic(){
   try{
     const snap = await db.collection('settings').doc('siteMusic').get();
@@ -1128,8 +1129,14 @@ async function loadSiteMusic(){
   if (!siteMusicURL){ btn.style.display = 'none'; return; }
   audio.src = siteMusicURL;
   btn.style.display = 'flex';
+  /* the user may have already clicked "enter site" before this fetch finished —
+     don't lose that gesture, start playing now that the source is ready */
+  if (userGestureReceived && audio.paused){
+    audio.play().catch(() => {});
+  }
 }
 function startSiteMusic(){
+  userGestureReceived = true;
   const audio = document.getElementById('bgMusic');
   if (!siteMusicURL) return;
   audio.play().catch(() => {});
