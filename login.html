@@ -401,6 +401,7 @@
         if (data.password !== password){ msg.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة.'; return false; }
         if (data.banned){ msg.textContent = 'هاد الحساب محظور.'; return false; }
         setCurrentUser({ id: doc.id, username: data.username, loginAt: Date.now(), subscribed: !!data.subscribed });
+        db.collection('users').doc(doc.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
         return true;
       } catch(e){ msg.textContent = 'صار خطأ، حاول مرة أخرى.'; return false; }
     }

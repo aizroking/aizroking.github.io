@@ -112,7 +112,7 @@ a{ color:inherit; }
 .tab.active{ background:var(--text); color:#fff; border-color:var(--text); }
 .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:18px; }
 .card{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:22px; position:relative; box-shadow:var(--shadow); transition:box-shadow .2s ease, transform .2s ease; }
-.reveal-card{ opacity:0; transform:translateY(24px); transition:opacity .5s ease, transform .5s ease; }
+.reveal-card{ opacity:0; transform:translateY(10px); transition:opacity .25s ease-out, transform .25s ease-out; }
 .reveal-card.revealed{ opacity:1; transform:translateY(0); }
 @media (prefers-reduced-motion: reduce){ .reveal-card{ opacity:1; transform:none; transition:none; } }
 .card:hover{ box-shadow:var(--shadow-lg); transform:translateY(-2px); }
@@ -503,6 +503,7 @@ async function checkRegularAccountStatus(){
     if (!snap.exists) return;
     const data = snap.data();
     reconcileBalance(r.id, data);
+    db.collection('users').doc(r.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
     if (data.unbanNotice){
       showUnbanNotice();
       db.collection('users').doc(r.id).update({ unbanNotice: false }).catch(()=>{});
@@ -779,6 +780,7 @@ async function loginAccount(username, password){
   setCurrentUser(session);
   setBalance(data.points || 0);
   setGems(data.gems || 0);
+  db.collection('users').doc(doc.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
   await recordDeviceIP(doc.id);
   return { ok:true };
 }
@@ -852,8 +854,12 @@ async function enforceAccessControl(){
     try{
       const ipSnap = await db.collection('bannedIPs').doc(currentClientIP).get();
       if (ipSnap.exists){
-        showBanBlock(await checkIsVPN(currentClientIP));
-        return true;
+        const banData = ipSnap.data();
+        const expired = banData.expiresAt && Date.now() > banData.expiresAt;
+        if (!expired){
+          showBanBlock(await checkIsVPN(currentClientIP));
+          return true;
+        }
       }
     } catch(e){}
   }
@@ -890,6 +896,7 @@ async function checkAccountStatus(){
       applyVipTheme();
     }
     reconcileBalance(u.id, data);
+    db.collection('users').doc(u.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
     if (data.unbanNotice){
       showUnbanNotice();
       db.collection('users').doc(u.id).update({ unbanNotice: false }).catch(()=>{});
@@ -1126,7 +1133,7 @@ function initScrollReveal(container){
           revealObserver.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    }, { threshold: 0.01, rootMargin: '0px 0px 100px 0px' });
   }
   container.querySelectorAll('.reveal-card').forEach(el => revealObserver.observe(el));
 }
