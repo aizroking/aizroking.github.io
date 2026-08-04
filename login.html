@@ -383,7 +383,7 @@
           await db.collection('users').doc(userId).set(userDoc);
         }
         await db.collection('accountKeys').doc(verifiedKey).update({ used: true, usedBy: userId, usedAt: Date.now() });
-        setCurrentUser({ id: userId, username: uname, loginAt: Date.now() });
+        setCurrentUser({ id: userId, username: uname, loginAt: Date.now(), subscribed: true });
         if (r) localStorage.removeItem('aizaro_regular_user');
         location.href = returnTo;
       } catch(e){ msg.textContent = 'صار خطأ: ' + e.message; }
@@ -400,7 +400,7 @@
         const data = doc.data();
         if (data.password !== password){ msg.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة.'; return false; }
         if (data.banned){ msg.textContent = 'هاد الحساب محظور.'; return false; }
-        setCurrentUser({ id: doc.id, username: data.username, loginAt: Date.now() });
+        setCurrentUser({ id: doc.id, username: data.username, loginAt: Date.now(), subscribed: !!data.subscribed });
         return true;
       } catch(e){ msg.textContent = 'صار خطأ، حاول مرة أخرى.'; return false; }
     }

@@ -609,7 +609,8 @@ function wireKeyTicket(){
   if (btn) btn.addEventListener('click', () => openModal('redeemOverlay'));
 }
 
-function isVipDeal(p){ return isLoggedIn() && vipDealProductIds.includes(p.id); }
+function isSubscribedVIP(){ const u = getCurrentUser(); return !!(u && u.subscribed); }
+function isVipDeal(p){ return isSubscribedVIP() && vipDealProductIds.includes(p.id); }
 function isProductUnavailable(p){
   if (p.unavailable) return true;
   if (p.expiresAt && Date.now() > p.expiresAt) return true;
@@ -743,7 +744,7 @@ async function registerAccount(key, username, password){
   }
   await keyRef.update({ used: true, usedBy: userId, usedAt: Date.now() });
 
-  const session = { id: userId, username: uname, loginAt: Date.now() };
+  const session = { id: userId, username: uname, loginAt: Date.now(), subscribed: true };
   setCurrentUser(session);
   if (r){
     setRegularUser(null);
@@ -764,7 +765,7 @@ async function loginAccount(username, password){
   const data = doc.data();
   if (data.password !== password) return { ok:false, reason:'wrongpass' };
   if (data.banned) return { ok:false, reason:'banned' };
-  const session = { id: doc.id, username: data.username, loginAt: Date.now() };
+  const session = { id: doc.id, username: data.username, loginAt: Date.now(), subscribed: !!data.subscribed };
   setCurrentUser(session);
   setBalance(data.points || 0);
   setGems(data.gems || 0);
@@ -774,6 +775,13 @@ async function loginAccount(username, password){
 
 function logoutAccount(){
   setCurrentUser(null);
+  setRegularUser(null);
+  localStorage.removeItem(BAL_KEY);
+  localStorage.removeItem(GEM_KEY);
+  localStorage.removeItem(OWN_KEY);
+  localStorage.removeItem(HISTORY_KEY);
+  localStorage.removeItem(COUPON_KEY);
+  document.documentElement.setAttribute('data-vip', 'false');
   applyVipTheme();
 }
 
@@ -867,12 +875,16 @@ async function checkAccountStatus(){
       logoutAccount();
       return;
     }
+    if (!!u.subscribed !== !!data.subscribed){
+      setCurrentUser({ ...u, subscribed: !!data.subscribed });
+      applyVipTheme();
+    }
     reconcileBalance(u.id, data);
     if (data.unbanNotice){
       showUnbanNotice();
       db.collection('users').doc(u.id).update({ unbanNotice: false }).catch(()=>{});
     }
-    await claimDailyBonus(u.id, data);
+    if (data.subscribed) await claimDailyBonus(u.id, data);
   } catch(e){}
 }
 
@@ -886,7 +898,7 @@ async function claimDailyBonus(userId, data){
 }
 
 function applyVipTheme(){
-  document.documentElement.setAttribute('data-vip', isLoggedIn() ? 'true' : 'false');
+  document.documentElement.setAttribute('data-vip', isSubscribedVIP() ? 'true' : 'false');
   const btn = document.getElementById('accountBtn');
   if (btn) btn.textContent = isLoggedIn() ? '👑' : '🔗';
 }
@@ -1375,8 +1387,10 @@ document.getElementById('accountBtn').addEventListener('click', async () => {
     document.getElementById('profileUserId').textContent = u.id;
     document.getElementById('profilePoints').textContent = getBalance();
     document.getElementById('profileGems').textContent = getGems();
-    document.getElementById('profileVipBadge').textContent = '👑';
-    document.getElementById('profileLinkStatus').textContent = 'حسابك مربوط بكلمة مرور ✅';
+    document.getElementById('profileVipBadge').textContent = u.subscribed ? '👑 VIP' : '';
+    document.getElementById('profileLinkStatus').textContent = u.subscribed
+      ? 'حسابك مربوط ومشترك VIP ✅'
+      : 'حسابك مربوط بكلمة مرور ✅ (بلا اشتراك VIP)';
     document.getElementById('togglePassFormBtn').textContent = 'تغيير كلمة المرور';
     document.getElementById('togglePassFormBtn').dataset.mode = 'change';
     showAccountStep('accountStepProfile');
@@ -1412,8 +1426,8 @@ document.getElementById('setPasswordBtn').addEventListener('click', async () => 
   const pass = document.getElementById('setPasswordInput').value;
   if (!r || !pass || pass.length < 4){ alert('كلمة المرور خاصها تكون 4 حروف/أرقام على الأقل.'); return; }
   try{
-    await db.collection('users').doc(r.id).update({ password: pass, subscribed: true });
-    setCurrentUser({ id: r.id, username: r.username, loginAt: Date.now() });
+    await db.collection('users').doc(r.id).update({ password: pass });
+    setCurrentUser({ id: r.id, username: r.username, loginAt: Date.now(), subscribed: false });
     setRegularUser(null);
     applyVipTheme();
     alert('تم ربط حسابك بنجاح! دابا تقدر ترجع ليه من أي جهاز باستخدام اليوزر وكلمة المرور.');
