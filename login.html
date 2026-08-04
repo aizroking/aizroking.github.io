@@ -327,7 +327,7 @@
       else localStorage.removeItem('aizaro_user');
     }
 
-    const returnTo = new URLSearchParams(location.search).get('return') || 'index-30.html';
+    const returnTo = new URLSearchParams(location.search).get('return') || './';
 
     /* ---- Registration (key + username + password) ---- */
     document.getElementById('openRegisterLink').addEventListener('click', () => {
