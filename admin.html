@@ -132,6 +132,7 @@ tr:last-child td{ border-bottom:none; }
     <button class="admin-tab" data-panel="accountsPanel">الحسابات</button>
     <button class="admin-tab" data-panel="moderatorsPanel">المشرفين</button>
     <button class="admin-tab" data-panel="genKeysPanel">مفاتيح المولّد</button>
+    <button class="admin-tab" data-panel="dataAppPanel">DATA APP 🪄</button>
     <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
   </div>
 
@@ -290,6 +291,17 @@ tr:last-child td{ border-bottom:none; }
     </div>
   </div>
 
+  <div class="panel" id="dataAppPanel">
+    <div class="form-card" style="max-width:520px;margin-bottom:22px;">
+      <h3>🪄 DATA APP — فحص شامل للحسابات</h3>
+      <p style="color:var(--text-muted);font-size:13px;">دور بـ ID الحساب، اليوزر، أو IP، وشوف كل معلومات الحساب فمكان واحد.</p>
+      <div class="field"><label>ID / اسم المستخدم / IP</label><input type="text" id="dataAppSearchInput" class="mono" placeholder="AIZ-U-XXXX أو اسم المستخدم أو IP"></div>
+      <button class="btn btn-fire btn-block" id="dataAppSearchBtn">🔍 بحث</button>
+    </div>
+
+    <div id="dataAppResults"></div>
+  </div>
+
   <div class="panel" id="settingsPanel">
     <div class="form-card" style="max-width:420px;">
       <h3>تغيير كلمة مرور الإدارة</h3>
@@ -442,7 +454,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -456,7 +468,8 @@ async function loadAll(){
     db.collection('genKeys').get(),
     db.collection('settings').doc('generatorConfig').get(),
     db.collection('settings').doc('customFonts').get(),
-    db.collection('settings').doc('ownerLink').get()
+    db.collection('settings').doc('ownerLink').get(),
+    db.collection('bannedIPs').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
@@ -468,6 +481,8 @@ async function loadAll(){
   window.__modKeys = modKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   window.__moderators = moderatorsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   window.__genKeys = genKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
+  window.__bannedIPs = {};
+  bannedIPsSnap.docs.forEach(d => { window.__bannedIPs[d.id] = d.data(); });
   document.getElementById('dailyCapInput').value = generatorConfigSnap.exists ? (Number(generatorConfigSnap.data().dailyCap) || 2000) : 2000;
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
@@ -486,6 +501,7 @@ async function loadAll(){
   renderModeratorsTable();
   renderGenKeysTable();
   populateVipDealSelects();
+  if (document.getElementById('dataAppSearchInput').value.trim()) dataAppSearch();
 }
 
 function catLabel(slug){ const c = allCategories.find(c => c.slug === slug); return c ? c.label : slug; }
@@ -966,6 +982,113 @@ async function banIPManually(userId){
   if (ips.length === 0){ alert('ما عندناش IP مسجل لهاد المستخدم بعد (لازم يزور الموقع مرة على الأقل).'); return; }
   alert('الـ IPs المرتبطة بهاد الحساب: ' + ips.join(', '));
 }
+
+/* ---------- DATA APP 🪄 ---------- */
+function fmtDataAppDate(ts){
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('ar-DZ', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function ipBanStatusLabel(ip){
+  const b = (window.__bannedIPs || {})[ip];
+  if (!b) return { label: 'غير محظور', cls: 'unused' };
+  if (b.expiresAt && Date.now() > b.expiresAt) return { label: 'غير محظور (انتهى)', cls: 'unused' };
+  if (b.expiresAt) return { label: 'محظور مؤقت لين ' + fmtDataAppDate(b.expiresAt), cls: 'used' };
+  return { label: 'محظور نهائي', cls: 'used' };
+}
+
+function dataAppSearch(){
+  const q = document.getElementById('dataAppSearchInput').value.trim();
+  const container = document.getElementById('dataAppResults');
+  if (!q){ container.innerHTML = ''; return; }
+  const qLower = q.toLowerCase();
+  const users = window.__users || [];
+  const matches = users.filter(u =>
+    u.id === q ||
+    (u.username && u.username.toLowerCase() === qLower) ||
+    (Array.isArray(u.ips) && u.ips.includes(q))
+  );
+  if (matches.length === 0){
+    container.innerHTML = '<div class="msg err">ما لقيناش نتيجة لهاد البحث.</div>';
+    return;
+  }
+  container.innerHTML = matches.map(renderDataAppCard).join('');
+  wireDataAppCardActions();
+}
+
+function renderDataAppCard(u){
+  const ips = Array.isArray(u.ips) ? u.ips : [];
+  const ipsHTML = ips.length === 0 ? '<p class="note">ما عندوش IP مسجل بعد.</p>' : ips.map(ip => {
+    const status = ipBanStatusLabel(ip);
+    return `
+    <div class="row-actions" style="justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);">
+      <span class="code-mono" style="font-size:12.5px;">${escapeHTML(ip)}</span>
+      <span class="tag ${status.cls}">${status.label}</span>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-tempban="${escapeHTML(ip)}" data-days="7">حظر 7 أيام</button>
+        <button class="btn btn-ghost btn-sm" data-tempban="${escapeHTML(ip)}" data-days="15">15 يوم</button>
+        <button class="btn btn-ghost btn-sm" data-tempban="${escapeHTML(ip)}" data-days="30">شهر</button>
+        <button class="btn btn-danger btn-sm" data-tempban="${escapeHTML(ip)}" data-days="0">نهائي</button>
+        <button class="btn btn-ghost btn-sm" data-unbanip="${escapeHTML(ip)}">رفع الحظر</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="form-card" style="max-width:560px;">
+    <h3>${u.subscribed ? '👑' : '👤'} ${escapeHTML(u.username)}</h3>
+    <p><b>ID:</b> <span class="code-mono">${escapeHTML(u.id)}</span></p>
+    <p><b>كلمة المرور:</b> <span class="code-mono">${u.password ? escapeHTML(u.password) : '— (حساب غير مربوط بكلمة مرور)'}</span></p>
+    <p><b>الحالة:</b> ${u.subscribed ? '⭐ مشترك VIP' : (u.password ? '🔗 مربوط (بلا VIP)' : '⚠️ غير مربوط')} — ${u.banned ? '🚫 محظور' : '✅ نشط'}</p>
+    <p><b>النقاط:</b> ${u.points ?? 0} — <b>الجواهر:</b> ${u.gems ?? 0} 💎</p>
+    <p><b>تاريخ التسجيل:</b> ${fmtDataAppDate(u.createdAt)}</p>
+    <p><b>آخر دخول:</b> ${fmtDataAppDate(u.lastSeenAt)}</p>
+    <p><b>الـ IPs المرتبطة (${ips.length}):</b></p>
+    ${ipsHTML}
+    <div class="row-actions" style="margin-top:14px;">
+      <button class="btn btn-ghost btn-sm" data-addpts="${u.id}">+ نقاط</button>
+      <button class="btn btn-ghost btn-sm" data-subpts="${u.id}">- نقاط</button>
+      <button class="btn btn-ghost btn-sm" data-reset="${u.id}">تصفير</button>
+      <button class="btn btn-ghost btn-sm" data-kick="${u.id}">خروج قسري</button>
+      <button class="btn btn-danger btn-sm" data-ban="${u.id}">${u.banned ? 'رفع حظر الحساب' : 'حظر الحساب'}</button>
+    </div>
+  </div>`;
+}
+
+function wireDataAppCardActions(){
+  const container = document.getElementById('dataAppResults');
+  container.querySelectorAll('[data-tempban]').forEach(b => b.addEventListener('click', () => {
+    banIPWithDuration(b.dataset.tempban, Number(b.dataset.days));
+  }));
+  container.querySelectorAll('[data-unbanip]').forEach(b => b.addEventListener('click', () => unbanIP(b.dataset.unbanip)));
+  container.querySelectorAll('[data-addpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.addpts, true)));
+  container.querySelectorAll('[data-subpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.subpts, false)));
+  container.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => resetUserAccount(b.dataset.reset)));
+  container.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickUserAccount(b.dataset.kick)));
+  container.querySelectorAll('[data-ban]').forEach(b => b.addEventListener('click', () => toggleBanUser(b.dataset.ban)));
+}
+
+async function banIPWithDuration(ip, days){
+  const label = days > 0 ? `${days} يوم` : 'نهائي';
+  if (!confirm(`متأكد بدك تحظر IP: ${ip} لمدة ${label}؟`)) return;
+  const expiresAt = days > 0 ? Date.now() + days * 86400000 : null;
+  try{
+    await db.collection('bannedIPs').doc(ip).set({ bannedAt: Date.now(), expiresAt, durationDays: days || null });
+    await loadAll();
+  } catch(e){ alert('صار خطأ: ' + e.message); }
+}
+
+async function unbanIP(ip){
+  try{
+    await db.collection('bannedIPs').doc(ip).delete();
+    await loadAll();
+  } catch(e){ alert('صار خطأ: ' + e.message); }
+}
+
+document.getElementById('dataAppSearchBtn').addEventListener('click', dataAppSearch);
+document.getElementById('dataAppSearchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') dataAppSearch();
+});
 
 /* ---------- Moderators ---------- */
 function genModKeyCode(){

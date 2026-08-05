@@ -304,7 +304,15 @@ footer a{ color:var(--accent); text-decoration:none; }
     <div class="ban-icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.5" y1="18.5" x2="18.5" y2="5.5"/></svg></div>
     <h2>حاسب محظور</h2>
     <p id="banMessage">هذا الحاسب محظور من استخدام الموقع.</p>
+    <p id="banCountdown" style="display:none;color:#f5d980;font-weight:700;font-size:18px;margin:0 0 18px;align-items:center;justify-content:center;gap:8px;"><svg class="ic" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M6 2h12v4l-5 6 5 6v4H6v-4l5-6-5-6V2z"/></svg> <span id="banCountdownText"></span></p>
     <a class="ban-support-btn" href="https://t.me/OUSSIXIT" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg> تواصل مع الدعم</a>
+    <button class="ban-support-btn" id="showAppealBtn" style="background:#2a2d38;border:1px solid #444;margin-top:10px;"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> إرسال استئناف</button>
+    <div id="appealInfoBox" style="display:none;margin-top:16px;text-align:right;background:#1b1d24;border:1px solid #333;border-radius:14px;padding:14px;">
+      <p style="margin:0 0 8px;font-size:13px;color:#9a9ca6;">انسخ المعلومات هاذي وابعتها للمطور باش يتأكد من حسابك ويفك الحظر إذا كان ظالم:</p>
+      <p style="margin:0 0 6px;font-size:13px;">ID: <span class="mono" id="appealUserId">—</span></p>
+      <p style="margin:0 0 10px;font-size:13px;">اليوزر: <span class="mono" id="appealUsername">—</span></p>
+      <button class="ban-support-btn" id="copyAppealBtn" style="background:#0071e3;border:none;width:100%;"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg> نسخ المعلومات</button>
+    </div>
   </div>
 </div>
 
@@ -919,13 +927,64 @@ async function checkIsVPN(ip){
   } catch(e){ return false; }
 }
 
-function showBanBlock(vpnDetected){
+let banCountdownInterval = null;
+function showBanBlock(vpnDetected, expiresAt){
   const overlay = document.getElementById('banOverlay');
   document.getElementById('banMessage').textContent = vpnDetected
     ? 'تم اكتشاف استخدام VPN لمحاولة تجاوز الحظر. هذا الحساب محظور نهائياً.'
     : 'هذا الحاسب محظور من استخدام الموقع.';
   overlay.classList.add('show');
+
+  const countdownEl = document.getElementById('banCountdown');
+  const countdownText = document.getElementById('banCountdownText');
+  if (banCountdownInterval){ clearInterval(banCountdownInterval); banCountdownInterval = null; }
+  if (expiresAt && !vpnDetected){
+    countdownEl.style.display = 'flex';
+    const tick = () => {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0){
+        clearInterval(banCountdownInterval);
+        countdownText.textContent = 'تم رفع الحظر... جاري التحديث';
+        setTimeout(() => location.reload(), 1200);
+        return;
+      }
+      const days = Math.floor(remaining / 86400000);
+      const hours = Math.floor((remaining % 86400000) / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      let parts = [];
+      if (days > 0) parts.push(days + 'ي');
+      parts.push(String(hours).padStart(2,'0') + ':' + String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0'));
+      countdownText.textContent = 'باقي: ' + parts.join(' ');
+    };
+    tick();
+    banCountdownInterval = setInterval(tick, 1000);
+  } else {
+    countdownEl.style.display = 'none';
+  }
+
+  const u = getCurrentUser();
+  const r = getRegularUser();
+  const acc = u || r;
+  document.getElementById('appealUserId').textContent = acc ? acc.id : 'ماعندكش حساب مسجل';
+  document.getElementById('appealUsername').textContent = acc ? acc.username : '—';
 }
+
+document.getElementById('showAppealBtn').addEventListener('click', () => {
+  const box = document.getElementById('appealInfoBox');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('copyAppealBtn').addEventListener('click', () => {
+  const id = document.getElementById('appealUserId').textContent;
+  const uname = document.getElementById('appealUsername').textContent;
+  const text = `ID: ${id}\nاليوزر: ${uname}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyAppealBtn');
+    const original = btn.textContent;
+    btn.textContent = '✅ تم النسخ';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  }).catch(() => { prompt('انسخ المعلومات:', text); });
+});
 
 async function enforceAccessControl(){
   currentClientIP = await getPublicIP();
@@ -942,7 +1001,8 @@ async function enforceAccessControl(){
         const banData = ipSnap.data();
         const expired = banData.expiresAt && Date.now() > banData.expiresAt;
         if (!expired){
-          showBanBlock(await checkIsVPN(currentClientIP));
+          const vpn = await checkIsVPN(currentClientIP);
+          showBanBlock(vpn, banData.expiresAt || null);
           return true;
         }
       }
@@ -1238,7 +1298,7 @@ function renderProducts(){
     const metaHTML = `
       <div class="card-meta">
         ${p.createdAt ? `<span class="meta-chip"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg> نزل: ${dateFmt(p.createdAt)}</span>` : ''}
-        ${p.expiresAt ? `<span class="meta-chip meta-expiry">⏳ ينتهي: ${dateFmt(p.expiresAt)}</span>` : ''}
+        ${p.expiresAt ? `<span class="meta-chip meta-expiry"><svg class="ic" viewBox="0 0 24 24"><path d="M6 2h12v4l-5 6 5 6v4H6v-4l5-6-5-6V2z"/></svg> ينتهي: ${dateFmt(p.expiresAt)}</span>` : ''}
         ${uploaderChip}
       </div>`;
     return `
