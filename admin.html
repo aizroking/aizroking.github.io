@@ -90,6 +90,10 @@ tr:last-child td{ border-bottom:none; }
 .msg.err{ background:rgba(255,59,48,.1); color:#d70015; border:1px solid rgba(255,59,48,.25); }
 .top-strip{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:12px; }
 .note{ font-size:12.5px; color:var(--text-muted); background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-top:20px; }
+.reorder-item{ display:flex; align-items:center; gap:10px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:10px 12px; cursor:grab; touch-action:none; user-select:none; transition:box-shadow .15s ease; }
+.reorder-item.dragging{ opacity:0.4; box-shadow:0 6px 20px rgba(0,0,0,.3); cursor:grabbing; }
+.reorder-item .handle{ font-size:16px; color:var(--text-muted); }
+.reorder-item .rname{ flex:1; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -152,7 +156,7 @@ tr:last-child td{ border-bottom:none; }
         <div class="field"><label>رابط صورة أو فيديو للمنتج (اختياري)</label><input type="text" id="pMedia" class="mono" placeholder="https://... (jpg/png أو mp4/webm)"></div>
         <div class="field"><label>مفتاح خاص بالمنتج (اختياري — يوصل تلقائياً مع الشراء)</label><input type="text" id="pKey" class="mono" placeholder="مثلاً: مفتاح ترخيص المود"></div>
         <div class="field"><label>مدة الصلاحية بالأيام (اختياري — بعدها يبقى المنتج غير متوفر تلقائياً)</label><input type="number" id="pDurationDays" min="1" placeholder="مثال: 7"></div>
-        <div class="field"><label>رقم الترتيب اليدوي (اختياري — رقم أصغر يبان قبل، للاستخدام فوضع الترتيب اليدوي)</label><input type="number" id="pSortOrder" placeholder="مثال: 1"></div>
+        <div class="field"><label>رقم الترتيب اليدوي (اختياري — الأسهل هو السحب من تبويب "الإعدادات")</label><input type="number" id="pSortOrder" placeholder="مثال: 1"></div>
         <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
         <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
       </div>
@@ -310,13 +314,20 @@ tr:last-child td{ border-bottom:none; }
       <div class="field">
         <label>طريقة الترتيب</label>
         <select id="displayOrderMode">
-          <option value="manual">يدوي (حسب رقم الترتيب لكل منتج)</option>
+          <option value="manual">يدوي (اسحب وبدل الترتيب تحت)</option>
           <option value="likes">الأكثر لايكات أولاً</option>
           <option value="recent">الأحدث تحميلاً أولاً</option>
         </select>
       </div>
       <button class="btn btn-fire btn-block" id="saveDisplayOrderBtn">حفظ طريقة الترتيب</button>
-      <div class="note">فوضع "يدوي"، حدد رقم الترتيب لكل منتج من نموذج تعديل المنتج (رقم أصغر = يبان قبل).</div>
+    </div>
+
+    <div class="form-card" style="max-width:420px;">
+      <h3>🔀 الترتيب اليدوي — اسحب وبدل</h3>
+      <p style="color:var(--text-muted);font-size:13px;">امسك أي منتج واسحبو فوق أو تحت باش تبدل مكانو، بحال ترتيب اللغات فالهاتف.</p>
+      <div id="reorderMsg"></div>
+      <div id="reorderList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button class="btn btn-fire btn-block" id="saveReorderBtn" style="margin-top:14px;">💾 حفظ الترتيب</button>
     </div>
 
     <div class="form-card" style="max-width:420px;">
@@ -522,6 +533,7 @@ async function loadAll(){
   renderModeratorsTable();
   renderGenKeysTable();
   populateVipDealSelects();
+  renderReorderList();
   if (document.getElementById('dataAppSearchInput').value.trim()) dataAppSearch();
 }
 
@@ -854,6 +866,81 @@ document.getElementById('saveDisplayOrderBtn').addEventListener('click', async (
     await db.collection('settings').doc('displayOrder').set({ mode });
     window.__displayOrderMode = mode;
     msg.innerHTML = '<div class="msg ok">تم حفظ طريقة الترتيب بنجاح.</div>';
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+/* ---------- Manual drag-to-reorder products ---------- */
+function renderReorderList(){
+  const list = document.getElementById('reorderList');
+  const items = (allProducts || []).slice().sort((a, b) => {
+    const aHas = a.sortOrder !== undefined && a.sortOrder !== null;
+    const bHas = b.sortOrder !== undefined && b.sortOrder !== null;
+    if (aHas && bHas) return a.sortOrder - b.sortOrder;
+    if (aHas) return -1;
+    if (bHas) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+  if (items.length === 0){ list.innerHTML = '<p class="note">ما في منتجات بعد.</p>'; return; }
+  list.innerHTML = items.map(p => `
+    <div class="reorder-item" data-id="${p.id}">
+      <span class="handle">☰</span>
+      <span class="rname">${p.icon || '🎮'} ${escapeHTML(p.name)}</span>
+    </div>`).join('');
+  wireReorderDrag();
+}
+
+function wireReorderDrag(){
+  const list = document.getElementById('reorderList');
+  let draggingEl = null;
+
+  list.querySelectorAll('.reorder-item').forEach(item => {
+    item.addEventListener('pointerdown', (e) => {
+      draggingEl = item;
+      item.classList.add('dragging');
+      item.setPointerCapture(e.pointerId);
+    });
+
+    item.addEventListener('pointermove', (e) => {
+      if (!draggingEl) return;
+      const afterEl = getReorderAfterElement(list, e.clientY);
+      if (afterEl == null){
+        list.appendChild(draggingEl);
+      } else {
+        list.insertBefore(draggingEl, afterEl);
+      }
+    });
+
+    const endDrag = () => {
+      if (draggingEl) draggingEl.classList.remove('dragging');
+      draggingEl = null;
+    };
+    item.addEventListener('pointerup', endDrag);
+    item.addEventListener('pointercancel', endDrag);
+  });
+}
+
+function getReorderAfterElement(container, y){
+  const items = [...container.querySelectorAll('.reorder-item:not(.dragging)')];
+  return items.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset){
+      return { offset, element: child };
+    }
+    return closest;
+  }, { offset: -Infinity, element: null }).element;
+}
+
+document.getElementById('saveReorderBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('reorderMsg');
+  const ids = [...document.querySelectorAll('#reorderList .reorder-item')].map(el => el.dataset.id);
+  if (ids.length === 0) return;
+  try{
+    await Promise.all(ids.map((id, index) => db.collection('products').doc(id).update({ sortOrder: index })));
+    msg.innerHTML = '<div class="msg ok">تم حفظ الترتيب بنجاح ✅</div>';
+    await loadAll();
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
