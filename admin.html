@@ -152,6 +152,7 @@ tr:last-child td{ border-bottom:none; }
         <div class="field"><label>رابط صورة أو فيديو للمنتج (اختياري)</label><input type="text" id="pMedia" class="mono" placeholder="https://... (jpg/png أو mp4/webm)"></div>
         <div class="field"><label>مفتاح خاص بالمنتج (اختياري — يوصل تلقائياً مع الشراء)</label><input type="text" id="pKey" class="mono" placeholder="مثلاً: مفتاح ترخيص المود"></div>
         <div class="field"><label>مدة الصلاحية بالأيام (اختياري — بعدها يبقى المنتج غير متوفر تلقائياً)</label><input type="number" id="pDurationDays" min="1" placeholder="مثال: 7"></div>
+        <div class="field"><label>رقم الترتيب اليدوي (اختياري — رقم أصغر يبان قبل، للاستخدام فوضع الترتيب اليدوي)</label><input type="number" id="pSortOrder" placeholder="مثال: 1"></div>
         <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
         <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
       </div>
@@ -229,8 +230,8 @@ tr:last-child td{ border-bottom:none; }
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>ID</th><th>اسم المستخدم</th><th>النوع</th><th>نقاط</th><th>جواهر</th><th>الحالة</th><th></th></tr></thead>
-        <tbody id="usersTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
+        <thead><tr><th>ID</th><th>اسم المستخدم</th><th>النوع</th><th>نقاط</th><th>جواهر</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="usersTableBody"><tr><td colspan="8">جاري التحميل...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -303,6 +304,21 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="panel" id="settingsPanel">
+    <div class="form-card" style="max-width:420px;">
+      <h3>ترتيب عرض المنتجات فالمتجر</h3>
+      <div id="displayOrderMsg"></div>
+      <div class="field">
+        <label>طريقة الترتيب</label>
+        <select id="displayOrderMode">
+          <option value="manual">يدوي (حسب رقم الترتيب لكل منتج)</option>
+          <option value="likes">الأكثر لايكات أولاً</option>
+          <option value="recent">الأحدث تحميلاً أولاً</option>
+        </select>
+      </div>
+      <button class="btn btn-fire btn-block" id="saveDisplayOrderBtn">حفظ طريقة الترتيب</button>
+      <div class="note">فوضع "يدوي"، حدد رقم الترتيب لكل منتج من نموذج تعديل المنتج (رقم أصغر = يبان قبل).</div>
+    </div>
+
     <div class="form-card" style="max-width:420px;">
       <h3>تغيير كلمة مرور الإدارة</h3>
       <div id="settingsMsg"></div>
@@ -454,7 +470,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 
 /* ---------- Data loading ---------- */
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -469,13 +485,16 @@ async function loadAll(){
     db.collection('settings').doc('generatorConfig').get(),
     db.collection('settings').doc('customFonts').get(),
     db.collection('settings').doc('ownerLink').get(),
-    db.collection('bannedIPs').get()
+    db.collection('bannedIPs').get(),
+    db.collection('settings').doc('displayOrder').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   allCategories = categoriesSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
   window.__codes = codesSnap.docs.map(d => ({ code: d.id, ...d.data() }));
   window.__accountKeys = accountKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
   window.__users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  window.__users.sort((a, b) => (b.lastSeenAt || b.createdAt || 0) - (a.lastSeenAt || a.createdAt || 0));
   window.__vipDeals = vipDealsSnap.exists ? vipDealsSnap.data() : { productIds: [] };
   window.__socialLinks = socialLinksSnap.exists ? socialLinksSnap.data() : {};
   window.__modKeys = modKeysSnap.docs.map(d => ({ key: d.id, ...d.data() }));
@@ -484,6 +503,8 @@ async function loadAll(){
   window.__bannedIPs = {};
   bannedIPsSnap.docs.forEach(d => { window.__bannedIPs[d.id] = d.data(); });
   document.getElementById('dailyCapInput').value = generatorConfigSnap.exists ? (Number(generatorConfigSnap.data().dailyCap) || 2000) : 2000;
+  window.__displayOrderMode = displayOrderSnap.exists ? (displayOrderSnap.data().mode || 'manual') : 'manual';
+  document.getElementById('displayOrderMode').value = window.__displayOrderMode;
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
@@ -596,6 +617,7 @@ function editProductRow(id){
   document.getElementById('pMedia').value = product.media || '';
   document.getElementById('pKey').value = product.productKey || '';
   document.getElementById('pDurationDays').value = product.durationDays || '';
+  document.getElementById('pSortOrder').value = (product.sortOrder !== undefined && product.sortOrder !== null) ? product.sortOrder : '';
   document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
   document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
   document.getElementById('cancelEditBtn').style.display = 'block';
@@ -608,7 +630,7 @@ function exitEditMode(){
   document.getElementById('productFormTitle').textContent = 'إضافة منتج جديد';
   document.getElementById('addProductBtn').textContent = 'إضافة المنتج';
   document.getElementById('cancelEditBtn').style.display = 'none';
-  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays'].forEach(id => document.getElementById(id).value = '');
+  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pFree').checked = false;
   togglePriceFields();
 }
@@ -634,6 +656,8 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   const media = document.getElementById('pMedia').value.trim();
   const productKey = document.getElementById('pKey').value.trim();
   const durationDays = Number(document.getElementById('pDurationDays').value) || 0;
+  const sortOrderRaw = document.getElementById('pSortOrder').value;
+  const sortOrder = sortOrderRaw === '' ? null : Number(sortOrderRaw);
   const msg = document.getElementById('productMsg');
   const btn = document.getElementById('addProductBtn');
 
@@ -647,7 +671,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   }
   btn.disabled = true;
   const expiresAt = durationDays > 0 ? Date.now() + durationDays * 86400000 : null;
-  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey, durationDays: durationDays || null, expiresAt };
+  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey, durationDays: durationDays || null, expiresAt, sortOrder };
   try{
     if (editingProductId){
       await db.collection('products').doc(editingProductId).update(data);
@@ -656,7 +680,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     } else {
       await db.collection('products').add({ ...data, likes: 0, purchaseCount: 0, unavailable: false, createdAt: Date.now() });
       msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
-      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays'].forEach(id => document.getElementById(id).value = '');
+      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('pFree').checked = false;
       togglePriceFields();
     }
@@ -823,6 +847,18 @@ document.getElementById('saveDailyCapBtn').addEventListener('click', async () =>
   }
 });
 
+document.getElementById('saveDisplayOrderBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('displayOrderMsg');
+  const mode = document.getElementById('displayOrderMode').value;
+  try{
+    await db.collection('settings').doc('displayOrder').set({ mode });
+    window.__displayOrderMode = mode;
+    msg.innerHTML = '<div class="msg ok">تم حفظ طريقة الترتيب بنجاح.</div>';
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
 function genGenKeyCode(){ return 'AIZ-GEN-' + genCode().replace('AIZ-', ''); }
 
 function genKeyStatus(k){
@@ -910,8 +946,8 @@ document.getElementById('genAccountKeyBtn').addEventListener('click', async () =
 /* ---------- Users / Accounts ---------- */
 function renderUsersTable(){
   const tbody = document.getElementById('usersTableBody');
-  const users = (window.__users || []).slice().reverse();
-  if (users.length === 0){ tbody.innerHTML = '<tr><td colspan="7">ما في حسابات مسجلة بعد.</td></tr>'; return; }
+  const users = window.__users || [];
+  if (users.length === 0){ tbody.innerHTML = '<tr><td colspan="8">ما في حسابات مسجلة بعد.</td></tr>'; return; }
   tbody.innerHTML = users.map(u => `
     <tr>
       <td class="code-mono" style="font-size:11px;">${escapeHTML(u.id)}</td>
@@ -919,22 +955,33 @@ function renderUsersTable(){
       <td><span class="tag ${u.subscribed ? 'unused' : ''}">${u.subscribed ? '⭐ مشترك' : 'عادي'}</span></td>
       <td>${u.points ?? 0}</td>
       <td>${u.gems ?? 0}</td>
+      <td style="font-size:11px;">${u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString('ar-DZ', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
       <td><span class="tag ${u.banned ? 'used' : 'unused'}">${u.banned ? 'محظور' : 'نشط'}</span></td>
       <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-inspect="${escapeHTML(u.id)}">🪄 فحص</button>
         <button class="btn btn-ghost btn-sm" data-addpts="${escapeHTML(u.id)}">+ نقاط</button>
         <button class="btn btn-ghost btn-sm" data-subpts="${escapeHTML(u.id)}">- نقاط</button>
         <button class="btn btn-ghost btn-sm" data-reset="${escapeHTML(u.id)}">تصفير</button>
         <button class="btn btn-ghost btn-sm" data-kick="${escapeHTML(u.id)}">خروج قسري</button>
-        <button class="btn btn-ghost btn-sm" data-viewip="${escapeHTML(u.id)}">IP</button>
         <button class="btn btn-danger btn-sm" data-ban="${escapeHTML(u.id)}">${u.banned ? 'رفع الحظر' : 'حظر'}</button>
       </td>
     </tr>`).join('');
+  tbody.querySelectorAll('[data-inspect]').forEach(b => b.addEventListener('click', () => inspectInDataApp(b.dataset.inspect)));
   tbody.querySelectorAll('[data-addpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.addpts, true)));
   tbody.querySelectorAll('[data-subpts]').forEach(b => b.addEventListener('click', () => adjustUserPoints(b.dataset.subpts, false)));
   tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => resetUserAccount(b.dataset.reset)));
   tbody.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickUserAccount(b.dataset.kick)));
-  tbody.querySelectorAll('[data-viewip]').forEach(b => b.addEventListener('click', () => banIPManually(b.dataset.viewip)));
   tbody.querySelectorAll('[data-ban]').forEach(b => b.addEventListener('click', () => toggleBanUser(b.dataset.ban)));
+}
+
+function inspectInDataApp(userId){
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.admin-tab[data-panel="dataAppPanel"]').classList.add('active');
+  document.getElementById('dataAppPanel').classList.add('active');
+  document.getElementById('dataAppSearchInput').value = userId;
+  dataAppSearch();
+  document.getElementById('dataAppPanel').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function adjustUserPoints(userId, positive){
@@ -1039,7 +1086,8 @@ function renderDataAppCard(u){
     <h3>${u.subscribed ? '👑' : '👤'} ${escapeHTML(u.username)}</h3>
     <p><b>ID:</b> <span class="code-mono">${escapeHTML(u.id)}</span></p>
     <p><b>كلمة المرور:</b> <span class="code-mono">${u.password ? escapeHTML(u.password) : '— (حساب غير مربوط بكلمة مرور)'}</span></p>
-    <p><b>الحالة:</b> ${u.subscribed ? '⭐ مشترك VIP' : (u.password ? '🔗 مربوط (بلا VIP)' : '⚠️ غير مربوط')} — ${u.banned ? '🚫 محظور' : '✅ نشط'}</p>
+    <p><b>الاشتراك:</b> ${u.subscribed ? '⭐ مشترك VIP' : 'عادي (بلا VIP)'} — ${u.banned ? '🚫 محظور' : '✅ نشط'}</p>
+    <p><b>الربط:</b> ${u.password ? '🔗 مربوط بكلمة مرور (يقدر يرجع لحسابو من أي جهاز)' : '⚠️ غير مربوط (خطر ضياع الحساب)'}</p>
     <p><b>النقاط:</b> ${u.points ?? 0} — <b>الجواهر:</b> ${u.gems ?? 0} 💎</p>
     <p><b>تاريخ التسجيل:</b> ${fmtDataAppDate(u.createdAt)}</p>
     <p><b>آخر دخول:</b> ${fmtDataAppDate(u.lastSeenAt)}</p>

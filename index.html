@@ -331,7 +331,7 @@ footer a{ color:var(--accent); text-decoration:none; }
     <input type="text" id="splashUsername" placeholder="اسمك (إجباري)" class="splash-input">
     <div class="splash-actions">
       <button type="button" id="suggestNameBtn" class="splash-chip"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg> اسم عشوائي</button>
-      <a id="splashLinkAccountBtn" href="login.html" class="splash-chip splash-chip-gold"><svg class="ic" viewBox="0 0 24 24"><path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg> ربط حساب</a>
+      <a id="splashLinkAccountBtn" href="login.html" class="splash-chip splash-chip-gold"><svg class="ic" viewBox="0 0 24 24"><path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg> استرد حساب</a>
     </div>
     <div id="splashNameErr" style="color:#ff6b6b;font-size:13px;margin-top:6px;min-height:16px;"></div>
   </div>
@@ -1239,13 +1239,35 @@ function renderTabs(){
 }
 
 let searchQuery = '';
+let displayOrderMode = 'recent';
+async function loadDisplayOrder(){
+  try{
+    const snap = await db.collection('settings').doc('displayOrder').get();
+    displayOrderMode = snap.exists ? (snap.data().mode || 'recent') : 'recent';
+  } catch(e){ displayOrderMode = 'recent'; }
+}
+function sortByDisplayOrder(a, b){
+  if (displayOrderMode === 'manual'){
+    const aHas = a.sortOrder !== undefined && a.sortOrder !== null;
+    const bHas = b.sortOrder !== undefined && b.sortOrder !== null;
+    if (aHas && bHas) return a.sortOrder - b.sortOrder;
+    if (aHas) return -1;
+    if (bHas) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  }
+  if (displayOrderMode === 'likes'){
+    return (Number(b.likes) || 0) - (Number(a.likes) || 0);
+  }
+  return (b.createdAt || 0) - (a.createdAt || 0);
+}
+
 function renderProducts(){
   const grid = document.getElementById('productGrid');
   const q = searchQuery.trim().toLowerCase();
   const products = allProducts.filter(p =>
     (activeCategory === 'all' || p.category === activeCategory) &&
     (!q || (p.name || '').toLowerCase().includes(q))
-  ).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  ).sort(sortByDisplayOrder);
   const keyTicketHTML = isKeyCategory(activeCategory) ? renderKeyTicketHTML() : '';
   if (products.length === 0){
     grid.innerHTML = keyTicketHTML + '<div class="empty-state">ما في منتجات بهاد التصنيف حالياً.</div>';
@@ -1380,9 +1402,17 @@ function handleBuyClick(id){
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:44px;"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
         <div style="font-weight:700;font-size:15px;margin-top:8px;">خاصك تربط حسابك بكلمة مرور قبل ما تشري أي منتج، عشان نقاطك ومشترياتك تبقى محفوظة.</div>
-        <a class="btn btn-fire btn-block" href="login.html" style="margin-top:16px;display:block;text-decoration:none;">سجل حسابك الآن</a>
+        <button class="btn btn-fire btn-block" id="goLinkAccountBtn" style="margin-top:16px;">سجل حسابك الآن</button>
       </div>`;
     openModal('purchaseOverlay');
+    document.getElementById('goLinkAccountBtn').addEventListener('click', () => {
+      closeModal('purchaseOverlay');
+      document.getElementById('accountBtn').click();
+      const linkForm = document.getElementById('profileLinkForm');
+      if (linkForm) linkForm.style.display = 'block';
+      const toggleBtn = document.getElementById('togglePassFormBtn');
+      if (toggleBtn) toggleBtn.style.display = 'none';
+    });
     return;
   }
 
@@ -1644,6 +1674,7 @@ document.getElementById('accountBtn').addEventListener('click', async () => {
   const r = getRegularUser();
   document.getElementById('profileLinkForm').style.display = 'none';
   document.getElementById('profileChangePassForm').style.display = 'none';
+  document.getElementById('togglePassFormBtn').style.display = 'block';
   if (u){
     document.getElementById('accountModalTitle').textContent = 'حسابي';
     document.getElementById('profileUsername').textContent = u.username;
@@ -1682,6 +1713,7 @@ document.getElementById('togglePassFormBtn').addEventListener('click', () => {
   } else {
     document.getElementById('profileChangePassForm').style.display = 'block';
   }
+  document.getElementById('togglePassFormBtn').style.display = 'none';
 });
 
 document.getElementById('setPasswordBtn').addEventListener('click', async () => {
@@ -1936,6 +1968,7 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     loadIosStoreVisibility();
     loadCustomFonts();
     await loadUploaderLinks();
+    await loadDisplayOrder();
   } catch(e){
     document.getElementById('productGrid').innerHTML = '<div class="empty-state">صار خطأ بتحميل المتجر: ' + escapeHTML(e.message) + '</div>';
     return;
