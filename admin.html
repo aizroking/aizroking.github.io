@@ -374,6 +374,16 @@ tr:last-child td{ border-bottom:none; }
     </div>
 
     <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>🤖 مساعد الذكاء الاصطناعي</h3>
+      <p style="color:var(--text-muted);font-size:13px;">⚠️ هاد المفتاح غادي يبان فكود الموقع العام (View Source) - أي حد يقدر يشوفو ويستعملو. استعمل مفتاح مجاني ما تخافش عليه.</p>
+      <div id="aiAssistantMsg"></div>
+      <div class="field"><label>مفتاح Gemini API</label><input type="text" id="aiApiKey" class="mono" placeholder="AIzaSy..."></div>
+      <div class="field"><label>اسم المساعد</label><input type="text" id="aiName" placeholder="مثلاً: مساعد AIZARO"></div>
+      <div class="field"><label>تعليمات النظام (اختياري)</label><textarea id="aiSystemPrompt" placeholder="مثلاً: أنت مساعد ودود لموقع بيع منتجات فري فاير، جاوب بالدارجة الجزائرية بإيجاز."></textarea></div>
+      <button class="btn btn-fire btn-block" id="saveAIAssistantBtn">حفظ إعدادات المساعد</button>
+    </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
       <h3>خط ورموز الموقع (ملفات OTF/TTF محلية)</h3>
       <p style="color:var(--text-muted);font-size:13px;">ارفع ملف خط من جهازك ليطبّق على نص الموقع، وملف تاني مخصص لعرض الإيموجي. تأكد إنك تملك ترخيص استخدام أي خط ترفعه — الموقع ما بيتحقق من ملكية الخط، هاي مسؤوليتك.</p>
       <div id="customFontsMsg"></div>
@@ -509,7 +519,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 })();
 
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -525,7 +535,8 @@ async function loadAll(){
     db.collection('settings').doc('customFonts').get(),
     db.collection('settings').doc('ownerLink').get(),
     db.collection('bannedIPs').get(),
-    db.collection('settings').doc('displayOrder').get()
+    db.collection('settings').doc('displayOrder').get(),
+    db.collection('settings').doc('aiAssistant').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -545,6 +556,10 @@ async function loadAll(){
   window.__displayOrderMode = displayOrderSnap.exists ? (displayOrderSnap.data().mode || 'manual') : 'manual';
   document.getElementById('displayOrderMode').value = window.__displayOrderMode;
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
+  const aiData = aiAssistantSnap.exists ? aiAssistantSnap.data() : {};
+  document.getElementById('aiApiKey').value = aiData.apiKey || '';
+  document.getElementById('aiName').value = aiData.name || '';
+  document.getElementById('aiSystemPrompt').value = aiData.systemPrompt || '';
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
   const ownerLinkData = ownerLinkSnap.exists ? ownerLinkSnap.data() : {};
@@ -1423,6 +1438,19 @@ document.getElementById('saveSiteMusicBtn').addEventListener('click', async () =
     await db.collection('settings').doc('siteMusic').set({ url });
     msg.innerHTML = '<div class="msg ok">تم حفظ الموسيقى بنجاح.</div>';
     await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('saveAIAssistantBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('aiAssistantMsg');
+  const apiKey = document.getElementById('aiApiKey').value.trim();
+  const name = document.getElementById('aiName').value.trim();
+  const systemPrompt = document.getElementById('aiSystemPrompt').value.trim();
+  try{
+    await db.collection('settings').doc('aiAssistant').set({ apiKey, name, systemPrompt });
+    msg.innerHTML = '<div class="msg ok">تم حفظ إعدادات المساعد بنجاح.</div>';
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
