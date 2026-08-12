@@ -1257,18 +1257,55 @@ async function loadCustomFonts(){
 
 let userGestureReceived = false;
 /* ---- AI Assistant orb + chat ---- */
-let aiConfig = { apiKey: '', name: 'المساعد الذكي', systemPrompt: '' };
+let aiConfig = { name: 'المساعد الذكي', systemPrompt: '' };
 let aiHistory = [];
 let ttsEnabled = (localStorage.getItem('aiTTSEnabled') !== '0');
 let voiceRecognition = null;
 let voiceRecognizing = false;
+let aiKeyPool = [];
+let aiUserMsgCount = 0;
+let aiCooldownUntilLocal = 0;
+const AI_KEY_MSG_LIMIT = 20;
+const AI_KEY_COOLDOWN_MS = 60000;
+const AI_FREE_MSG_LIMIT = 5;
+const AI_FREE_COOLDOWN_MS = 30000;
 
 async function loadAIAssistant(){
   try{
     const snap = await db.collection('settings').doc('aiAssistant').get();
-    if (snap.exists) aiConfig = { apiKey: '', name: 'المساعد الذكي', systemPrompt: '', ...snap.data() };
+    if (snap.exists) aiConfig = { name: 'المساعد الذكي', systemPrompt: '', ...snap.data() };
   } catch(e){}
   document.getElementById('aiChatTitle').textContent = aiConfig.name || 'المساعد الذكي';
+  await loadAIKeyPool();
+}
+
+async function loadAIKeyPool(){
+  try{
+    const snap = await db.collection('aiApiKeys').get();
+    aiKeyPool = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e){ aiKeyPool = []; }
+}
+
+function pickAvailableAiKey(){
+  const now = Date.now();
+  return (aiKeyPool || []).find(k => !k.disabled && (!k.cooldownUntil || k.cooldownUntil <= now)) || null;
+}
+
+async function markAiKeyUsed(keyDoc){
+  const newCount = (keyDoc.usageCount || 0) + 1;
+  const update = { usageCount: newCount };
+  if (newCount >= AI_KEY_MSG_LIMIT){
+    update.usageCount = 0;
+    update.cooldownUntil = Date.now() + AI_KEY_COOLDOWN_MS;
+  }
+  keyDoc.usageCount = update.usageCount;
+  if (update.cooldownUntil) keyDoc.cooldownUntil = update.cooldownUntil;
+  try{ await db.collection('aiApiKeys').doc(keyDoc.id).update(update); } catch(e){}
+}
+
+async function markAiKeyDead(keyDoc){
+  keyDoc.disabled = true;
+  try{ await db.collection('aiApiKeys').doc(keyDoc.id).update({ disabled: true }); } catch(e){}
 }
 
 /* Live snapshot of the store (categories/products/prices/VIP/balance), rebuilt
@@ -1498,11 +1535,21 @@ function toggleAIChat(){
   }
 }
 
-function addAIMessage(role, text){
+function addAIMessage(role, text, isHTML){
   const box = document.getElementById('aiChatMessages');
   const div = document.createElement('div');
   div.className = 'ai-msg ' + (role === 'user' ? 'user' : 'bot');
-  div.textContent = text;
+  if (isHTML) div.innerHTML = text; else div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function addVipUpsellMessage(){
+  addAIMessage('bot', 'خلصت الرسائل المجانية ديالك 🙂 اشترك فـ VIP باش تحصل على رسائل بلا حدود.', false);
+  const box = document.getElementById('aiChatMessages');
+  const div = document.createElement('div');
+  div.className = 'ai-msg bot';
+  div.innerHTML = `<a href="https://t.me/OUSSIXIT" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;font-weight:700;">🪄 اشترك في VIP - تواصل مع المطور</a>`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
@@ -1512,10 +1559,29 @@ async function sendAIMessage(){
   const sendBtn = document.getElementById('aiChatSendBtn');
   const text = input.value.trim();
   if (!text) return;
-  if (!aiConfig.apiKey){
-    addAIMessage('bot', 'المساعد الذكي ماشي مفعّل حالياً، تواصل مع الإدارة.');
+
+  const isVip = isSubscribedVIP();
+  const now = Date.now();
+
+  if (aiCooldownUntilLocal > now){
+    const secsLeft = Math.ceil((aiCooldownUntilLocal - now) / 1000);
+    addAIMessage('bot', `⏳ استنى ${secsLeft} ثانية باش تكمل تحاور.`);
     return;
   }
+
+  if (!isVip && aiUserMsgCount >= AI_FREE_MSG_LIMIT){
+    aiCooldownUntilLocal = now + AI_FREE_COOLDOWN_MS;
+    addVipUpsellMessage();
+    startAICooldownTimer();
+    return;
+  }
+
+  let activeKey = pickAvailableAiKey();
+  if (!activeKey){
+    addAIMessage('bot', '⏳ المساعد مزدحم شوي، استنى دقيقة وعاود جرب.');
+    return;
+  }
+
   addAIMessage('user', text);
   input.value = '';
   input.disabled = true;
@@ -1525,36 +1591,79 @@ async function sendAIMessage(){
   showAITyping();
 
   aiHistory.push({ role: 'user', parts: [{ text }] });
-  try{
-    const body = {
-      contents: aiHistory,
-      systemInstruction: { parts: [{ text: buildAISystemPrompt() }] }
-    };
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': aiConfig.apiKey },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok || data.error){
-      const errMsg = data?.error?.message || ('HTTP ' + res.status);
+
+  let attempts = 0;
+  let success = false;
+  while (attempts < 3 && !success){
+    attempts++;
+    activeKey = pickAvailableAiKey();
+    if (!activeKey){
       aiHistory.pop();
-      addAIMessage('bot', '⚠️ خطأ من Gemini: ' + errMsg);
-    } else {
+      addAIMessage('bot', '⏳ المساعد مزدحم شوي، استنى دقيقة وعاود جرب.');
+      break;
+    }
+    try{
+      const body = {
+        contents: aiHistory,
+        systemInstruction: { parts: [{ text: buildAISystemPrompt() }] }
+      };
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': activeKey.key },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok || data.error){
+        const errMsg = data?.error?.message || ('HTTP ' + res.status);
+        const isKeyDead = res.status === 400 || res.status === 401 || res.status === 403 || /api key|permission|unauthenticated/i.test(errMsg);
+        if (isKeyDead){
+          await markAiKeyDead(activeKey);
+          continue;
+        }
+        aiHistory.pop();
+        addAIMessage('bot', '⚠️ خطأ من Gemini: ' + errMsg);
+        break;
+      }
       const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'ما قدرتش نجاوب، جرب مرة أخرى.';
       aiHistory.push({ role: 'model', parts: [{ text: reply }] });
       addAIMessage('bot', reply);
       speakText(reply);
+      await markAiKeyUsed(activeKey);
+      success = true;
+    } catch(e){
+      aiHistory.pop();
+      addAIMessage('bot', '⚠️ صار خطأ فالاتصال: ' + e.message);
+      break;
     }
-  } catch(e){
-    aiHistory.pop();
-    addAIMessage('bot', '⚠️ صار خطأ فالاتصال: ' + e.message);
   }
+
+  if (success && !isVip) aiUserMsgCount++;
+
   hideAITyping();
   orb.classList.remove('thinking');
   input.disabled = false;
   input.focus();
   updateAISendState();
+}
+
+function startAICooldownTimer(){
+  const input = document.getElementById('aiChatInput');
+  const sendBtn = document.getElementById('aiChatSendBtn');
+  input.disabled = true;
+  sendBtn.disabled = true;
+  const tick = () => {
+    const remaining = aiCooldownUntilLocal - Date.now();
+    if (remaining <= 0){
+      input.disabled = false;
+      sendBtn.disabled = false;
+      aiUserMsgCount = 0;
+      input.placeholder = 'اكتب سؤالك...';
+      return;
+    }
+    input.placeholder = `استنى ${Math.ceil(remaining / 1000)} ثانية...`;
+    setTimeout(tick, 1000);
+  };
+  tick();
 }
 
 document.getElementById('aiChatCloseBtn').addEventListener('click', toggleAIChat);

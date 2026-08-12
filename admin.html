@@ -375,12 +375,26 @@ tr:last-child td{ border-bottom:none; }
 
     <div class="form-card" style="max-width:420px;margin-top:22px;">
       <h3>🤖 مساعد الذكاء الاصطناعي</h3>
-      <p style="color:var(--text-muted);font-size:13px;">⚠️ هاد المفتاح غادي يبان فكود الموقع العام (View Source) - أي حد يقدر يشوفو ويستعملو. استعمل مفتاح مجاني ما تخافش عليه.</p>
+      <p style="color:var(--text-muted);font-size:13px;">⚠️ المفاتيح غادي تبان فكود الموقع العام (View Source) - أي حد يقدر يشوفها. استعمل مفاتيح مجانية ما تخافش عليها.</p>
       <div id="aiAssistantMsg"></div>
-      <div class="field"><label>مفتاح Gemini API</label><input type="text" id="aiApiKey" class="mono" placeholder="AIzaSy..."></div>
       <div class="field"><label>اسم المساعد</label><input type="text" id="aiName" placeholder="مثلاً: مساعد AIZARO"></div>
       <div class="field"><label>تعليمات النظام (اختياري)</label><textarea id="aiSystemPrompt" placeholder="مثلاً: أنت مساعد ودود لموقع بيع منتجات فري فاير، جاوب بالدارجة الجزائرية بإيجاز."></textarea></div>
       <button class="btn btn-fire btn-block" id="saveAIAssistantBtn">حفظ إعدادات المساعد</button>
+    </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>🔑 بنك مفاتيح Gemini (تبديل تلقائي)</h3>
+      <p style="color:var(--text-muted);font-size:13px;">زيد كم ما بغيتي من المفاتيح. الموقع كيبدل تلقائياً للمفتاح التالي كي وحد يوصل لحد الاستخدام، يتباند، أو يتحذف.</p>
+      <div id="aiKeysMsg"></div>
+      <div class="field"><label>مفتاح Gemini API جديد</label><input type="text" id="newAiKeyInput" class="mono" placeholder="AIzaSy... أو AQ...."></div>
+      <button class="btn btn-fire btn-block" id="addAiKeyBtn">➕ إضافة مفتاح للبنك</button>
+    </div>
+
+    <div class="table-wrap" style="margin-top:14px;">
+      <table>
+        <thead><tr><th>المفتاح</th><th>عدد الاستخدام</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="aiKeysTableBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+      </table>
     </div>
 
     <div class="form-card" style="max-width:420px;margin-top:22px;">
@@ -519,7 +533,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 })();
 
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap, aiApiKeysSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -536,7 +550,8 @@ async function loadAll(){
     db.collection('settings').doc('ownerLink').get(),
     db.collection('bannedIPs').get(),
     db.collection('settings').doc('displayOrder').get(),
-    db.collection('settings').doc('aiAssistant').get()
+    db.collection('settings').doc('aiAssistant').get(),
+    db.collection('aiApiKeys').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -557,9 +572,10 @@ async function loadAll(){
   document.getElementById('displayOrderMode').value = window.__displayOrderMode;
   document.getElementById('siteMusicUrl').value = siteMusicSnap.exists ? (siteMusicSnap.data().url || '') : '';
   const aiData = aiAssistantSnap.exists ? aiAssistantSnap.data() : {};
-  document.getElementById('aiApiKey').value = aiData.apiKey || '';
   document.getElementById('aiName').value = aiData.name || '';
   document.getElementById('aiSystemPrompt').value = aiData.systemPrompt || '';
+  window.__aiApiKeys = aiApiKeysSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderAiKeysTable();
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
   const ownerLinkData = ownerLinkSnap.exists ? ownerLinkSnap.data() : {};
@@ -1445,16 +1461,75 @@ document.getElementById('saveSiteMusicBtn').addEventListener('click', async () =
 
 document.getElementById('saveAIAssistantBtn').addEventListener('click', async () => {
   const msg = document.getElementById('aiAssistantMsg');
-  const apiKey = document.getElementById('aiApiKey').value.trim();
   const name = document.getElementById('aiName').value.trim();
   const systemPrompt = document.getElementById('aiSystemPrompt').value.trim();
   try{
-    await db.collection('settings').doc('aiAssistant').set({ apiKey, name, systemPrompt });
+    await db.collection('settings').doc('aiAssistant').set({ name, systemPrompt });
     msg.innerHTML = '<div class="msg ok">تم حفظ إعدادات المساعد بنجاح.</div>';
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
 });
+
+/* ---------- AI API key bank ---------- */
+function maskAiKey(k){
+  if (!k || k.length < 10) return k;
+  return k.slice(0, 6) + '••••••' + k.slice(-4);
+}
+
+function renderAiKeysTable(){
+  const tbody = document.getElementById('aiKeysTableBody');
+  const keys = window.__aiApiKeys || [];
+  if (keys.length === 0){ tbody.innerHTML = '<tr><td colspan="4">ما فماش مفاتيح فالبنك بعد.</td></tr>'; return; }
+  const now = Date.now();
+  tbody.innerHTML = keys.map(k => {
+    const inCooldown = k.cooldownUntil && k.cooldownUntil > now;
+    let statusLabel, statusCls;
+    if (k.disabled){ statusLabel = 'معطل (يدوي)'; statusCls = 'used'; }
+    else if (inCooldown){ statusLabel = 'فترة راحة'; statusCls = 'used'; }
+    else { statusLabel = 'متاح'; statusCls = 'unused'; }
+    return `
+    <tr>
+      <td class="code-mono" style="font-size:11px;">${escapeHTML(maskAiKey(k.key))}</td>
+      <td>${k.usageCount || 0}</td>
+      <td><span class="tag ${statusCls}">${statusLabel}</span></td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" data-toggleaikey="${k.id}">${k.disabled ? 'تفعيل' : 'تعطيل'}</button>
+        <button class="btn btn-danger btn-sm" data-delaikey="${k.id}">حذف</button>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-toggleaikey]').forEach(b => b.addEventListener('click', () => toggleAiKey(b.dataset.toggleaikey)));
+  tbody.querySelectorAll('[data-delaikey]').forEach(b => b.addEventListener('click', () => deleteAiKey(b.dataset.delaikey)));
+}
+
+document.getElementById('addAiKeyBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('aiKeysMsg');
+  const input = document.getElementById('newAiKeyInput');
+  const key = input.value.trim();
+  if (!key){ msg.innerHTML = '<div class="msg err">دخل مفتاح صحيح.</div>'; return; }
+  try{
+    await db.collection('aiApiKeys').add({ key, usageCount: 0, cooldownUntil: null, disabled: false, addedAt: Date.now() });
+    input.value = '';
+    msg.innerHTML = '<div class="msg ok">تم إضافة المفتاح للبنك ✅</div>';
+    await loadAll();
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+async function toggleAiKey(id){
+  const k = (window.__aiApiKeys || []).find(k => k.id === id);
+  if (!k) return;
+  await db.collection('aiApiKeys').doc(id).update({ disabled: !k.disabled });
+  await loadAll();
+}
+
+async function deleteAiKey(id){
+  if (!confirm('متأكد بدك تحذف هاد المفتاح من البنك؟')) return;
+  await db.collection('aiApiKeys').doc(id).delete();
+  await loadAll();
+}
 
 /* ---------- Settings ---------- */
 document.getElementById('changePassBtn').addEventListener('click', async () => {
