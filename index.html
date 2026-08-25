@@ -304,6 +304,10 @@ h3 a.uploader-link:hover{ text-decoration:underline; }
 #aiChatMicBtn.listening{ background:linear-gradient(135deg,#ff5c5c,#ff8a5c); color:#fff; border-color:transparent; animation:aiMicPulse 1.1s ease-in-out infinite; }
 @keyframes aiMicPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,92,92,.45); } 50%{ box-shadow:0 0 0 9px rgba(255,92,92,0); } }
 @media (max-width:480px){ #aiChatPanel{ width:calc(100vw - 24px); right:12px; bottom:140px; height:min(500px,68vh); } #aiOrb{ right:14px; width:42px; height:42px; } }
+.daily-streak-toast{ position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-30px); z-index:9000; display:flex; align-items:center; gap:12px; background:var(--bg-card); border:1px solid var(--accent,#0071e3); border-radius:16px; padding:12px 18px; box-shadow:var(--shadow-lg,0 14px 40px rgba(0,0,0,.3)); opacity:0; transition:opacity .35s ease, transform .35s ease; font-size:13.5px; }
+.daily-streak-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+.daily-streak-toast .dst-icon{ font-size:28px; }
+
 footer{ border-top:1px solid var(--border-soft); padding:28px 0; color:var(--text-muted); font-size:13px; text-align:center; }
 .social-links{ display:flex; justify-content:center; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
 .social-links a{ display:flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted); text-decoration:none; transition:transform .15s ease, background .15s ease, color .15s ease; }
@@ -312,6 +316,48 @@ footer a{ color:var(--accent); text-decoration:none; }
 @media (max-width:640px){ .hero h1{ font-size:32px; } .nav-links{ display:none; } .brand{ font-size:15px; } .points-chip{ padding:6px 10px; font-size:12px; } .points-chip b{ font-size:12px; } .hud-right{ gap:8px; } .btn-sm{ padding:7px 10px; font-size:12px; } }
 
 /* ---- Welcome splash ---- */
+/* ---- Maintenance Overlay ---- */
+#maintenanceOverlay{
+  position:fixed; inset:0; z-index:10000;
+  background:#050608;
+  display:none; align-items:center; justify-content:center; padding:24px;
+  flex-direction:column;
+}
+#maintenanceOverlay.show{ display:flex; }
+.maint-box{
+  max-width:420px; width:100%; text-align:center;
+  background:linear-gradient(160deg,#141518,#0f1116);
+  border:1px solid rgba(125,90,255,.25);
+  border-radius:26px; padding:44px 30px 36px;
+  box-shadow: 0 0 80px rgba(125,90,255,.12), 0 20px 60px rgba(0,0,0,.7);
+  position:relative; overflow:hidden;
+}
+.maint-box::before{
+  content:''; position:absolute; inset:0; border-radius:26px; pointer-events:none;
+  background:radial-gradient(ellipse at 50% -10%, rgba(125,90,255,.18), transparent 65%);
+}
+.maint-gear{
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 20px;
+  animation:maintSpin 6s linear infinite;
+  width:70px; height:70px;
+  background:linear-gradient(135deg,#0a84ff,#7d5fff,#ff6bd6);
+  border-radius:50%; box-shadow:0 0 32px rgba(125,90,255,.5);
+}
+.maint-gear svg{ width:36px; height:36px; stroke:#fff; fill:none; stroke-width:1.6; }
+@keyframes maintSpin{ to{ transform:rotate(360deg); } }
+.maint-box h2{
+  font-size:22px; font-weight:700; margin:0 0 14px; color:#f2f1ec;
+  background:linear-gradient(120deg,#0a84ff,#7d5fff,#ff6bd6);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.maint-msg{ color:#9a9ca6; font-size:14.5px; line-height:1.7; margin:0 0 20px; }
+.maint-eta{
+  display:inline-flex; align-items:center; gap:7px;
+  background:rgba(125,90,255,.12); border:1px solid rgba(125,90,255,.22);
+  border-radius:40px; padding:8px 18px; font-size:13px; color:#c5c3ff; margin-bottom:0;
+}
+.maint-footer{ margin-top:22px; font-size:12px; color:#5a5a6a; }
 #banOverlay{ position:fixed; inset:0; z-index:9999; background:#050608; display:none; align-items:center; justify-content:center; padding:24px; }
 #unbanOverlay{ position:fixed; inset:0; z-index:9998; background:rgba(5,6,8,.92); display:none; align-items:center; justify-content:center; padding:24px; }
 #unbanOverlay.show{ display:flex; }
@@ -343,6 +389,21 @@ footer a{ color:var(--accent); text-decoration:none; }
 <script>
 (function(){ try{ document.documentElement.setAttribute('data-theme', localStorage.getItem('aizaro_theme') || 'dark'); }catch(e){} })();
 </script>
+
+<div id="maintenanceOverlay">
+  <div class="maint-box">
+    <div class="maint-gear">
+      <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+    <h2>الموقع تحت الصيانة</h2>
+    <p class="maint-msg" id="maintMessage">نحن نعمل على تحسين الموقع، ارجع بعد شوية 🔧</p>
+    <div class="maint-eta" id="maintEtaBox" style="display:none;">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <span id="maintEtaText"></span>
+    </div>
+    <p class="maint-footer">AIZARO KING — يعود قريباً ✨</p>
+  </div>
+</div>
 
 <div id="banOverlay">
   <div class="ban-box">
@@ -638,17 +699,27 @@ function setRegularUser(u){
   if (u) localStorage.setItem(REGULAR_USER_KEY, JSON.stringify(u));
   else localStorage.removeItem(REGULAR_USER_KEY);
 }
+async function getWelcomeGiftConfig(){
+  try{
+    const snap = await db.collection('settings').doc('welcomeGift').get();
+    return snap.exists ? { points: Number(snap.data().points) || 0, gems: Number(snap.data().gems) || 0 } : { points: 0, gems: 0 };
+  } catch(e){ return { points: 0, gems: 0 }; }
+}
+
 async function createRegularUser(username){
   const uname = username.trim();
   const existing = await db.collection('users').where('username', '==', uname).limit(1).get();
   if (!existing.empty) return { ok:false, reason:'taken' };
   const userId = 'AIZ-G-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const gift = await getWelcomeGiftConfig();
+  const startPoints = getBalance() + gift.points;
+  const startGems = getGems() + gift.gems;
   const doc = {
     username: uname,
     subscribed: false,
     deviceId: getDeviceId(),
-    points: getBalance(),
-    gems: getGems(),
+    points: startPoints,
+    gems: startGems,
     banned: false,
     createdAt: Date.now(),
     kickedAt: null
@@ -656,6 +727,9 @@ async function createRegularUser(username){
   await db.collection('users').doc(userId).set(doc);
   const rec = { id: userId, username: uname };
   setRegularUser(rec);
+  setBalance(startPoints);
+  setGems(startGems);
+  if (gift.points || gift.gems) addHistory({ type: 'gift', name: 'هدية ترحيبية', amount: gift.points });
   await recordDeviceIP(userId);
   return { ok:true, id: userId, username: uname };
 }
@@ -678,6 +752,8 @@ async function checkRegularAccountStatus(){
       showUnbanNotice();
       db.collection('users').doc(r.id).update({ unbanNotice: false }).catch(()=>{});
     }
+    await claimDailyStreakBonus(r.id, data);
+    await claimPendingGift(r.id, data);
   } catch(e){}
 }
 
@@ -795,6 +871,7 @@ function isVipDeal(p){ return isSubscribedVIP() && vipDealProductIds.includes(p.
 function isProductUnavailable(p){
   if (p.unavailable) return true;
   if (p.expiresAt && Date.now() > p.expiresAt) return true;
+  if (p.maxPurchases && (Number(p.purchaseCount) || 0) >= Number(p.maxPurchases)) return true;
   return false;
 }
 
@@ -1063,6 +1140,26 @@ document.getElementById('copyAppealBtn').addEventListener('click', () => {
   }).catch(() => { prompt('انسخ المعلومات:', text); });
 });
 
+/* ---- Maintenance Mode Check ---- */
+async function checkMaintenanceMode(){
+  try {
+    const snap = await db.collection('settings').doc('maintenance').get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    if (!data.active) return false;
+    const msgEl   = document.getElementById('maintMessage');
+    const etaBox  = document.getElementById('maintEtaBox');
+    const etaText = document.getElementById('maintEtaText');
+    if (data.message) msgEl.textContent = data.message;
+    if (data.eta) {
+      etaText.textContent = 'وقت العودة المتوقع: ' + data.eta;
+      etaBox.style.display = 'inline-flex';
+    }
+    document.getElementById('maintenanceOverlay').classList.add('show');
+    return true;
+  } catch(e) { return false; }
+}
+
 async function enforceAccessControl(){
   currentClientIP = await getPublicIP();
 
@@ -1101,6 +1198,31 @@ async function enforceAccessControl(){
   return false;
 }
 
+async function claimPendingGift(userId, data){
+  const gift = data.pendingGift;
+  if (!gift) return;
+  const newPoints = (data.points || 0) + (Number(gift.points) || 0);
+  const newGems = (data.gems || 0) + (Number(gift.gems) || 0);
+  await db.collection('users').doc(userId).update({ points: newPoints, gems: newGems, pendingGift: null });
+  setBalance(newPoints);
+  setGems(newGems);
+  const label = gift.occasion ? `🎁 هدية: ${gift.occasion}` : '🎁 وصلتك هدية!';
+  addHistory({ type: 'gift', name: label, amount: Number(gift.points) || 0 });
+  showGiftPopup(gift);
+}
+
+function showGiftPopup(gift){
+  const parts = [];
+  if (gift.points) parts.push(`${gift.points} نقطة`);
+  if (gift.gems) parts.push(`${gift.gems} جوهرة`);
+  const div = document.createElement('div');
+  div.className = 'daily-streak-toast';
+  div.innerHTML = `<div class="dst-icon">🎉</div><div><b>${gift.occasion ? escapeHTML(gift.occasion) : 'هدية وصلتك!'}</b><br>${parts.join(' + ')}</div>`;
+  document.body.appendChild(div);
+  requestAnimationFrame(() => div.classList.add('show'));
+  setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 400); }, 5000);
+}
+
 async function checkAccountStatus(){
   const u = getCurrentUser();
   if (!u) return;
@@ -1123,17 +1245,41 @@ async function checkAccountStatus(){
       showUnbanNotice();
       db.collection('users').doc(u.id).update({ unbanNotice: false }).catch(()=>{});
     }
-    if (data.subscribed) await claimDailyBonus(u.id, data);
+    await claimDailyStreakBonus(u.id, data);
+    await claimPendingGift(u.id, data);
   } catch(e){}
 }
 
-async function claimDailyBonus(userId, data){
+function computeStreakReward(streak){
+  if (streak === 1) return 100;
+  if (streak === 2) return 10;
+  if (streak === 3) return 20;
+  return Math.floor(10 + Math.random() * 91); // 10~100
+}
+
+async function claimDailyStreakBonus(userId, data){
   const today = new Date().toISOString().slice(0, 10);
-  if (data.lastDailyClaim === today) return;
-  const newPoints = (data.points || 0) + 50;
-  await db.collection('users').doc(userId).update({ points: newPoints, lastDailyClaim: today });
+  if (data.lastStreakDate === today) return;
+  let streak = 1;
+  if (data.lastStreakDate){
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    streak = (data.lastStreakDate === yesterday) ? (Number(data.loginStreak) || 0) + 1 : 1;
+  }
+  const reward = computeStreakReward(streak);
+  const newPoints = (data.points || 0) + reward;
+  await db.collection('users').doc(userId).update({ points: newPoints, lastStreakDate: today, loginStreak: streak });
   setBalance(newPoints);
-  addHistory({ type: 'daily', name: 'مكافأة يومية VIP', amount: 50 });
+  addHistory({ type: 'daily', name: `مكافأة الدخول اليومي (يوم ${streak})`, amount: reward });
+  showDailyStreakToast(streak, reward);
+}
+
+function showDailyStreakToast(streak, reward){
+  const div = document.createElement('div');
+  div.className = 'daily-streak-toast';
+  div.innerHTML = `<div class="dst-icon">🎁</div><div><b>يوم ${streak} متتالي!</b><br>ربحت ${reward} نقطة</div>`;
+  document.body.appendChild(div);
+  requestAnimationFrame(() => div.classList.add('show'));
+  setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 400); }, 4000);
 }
 
 function applyVipTheme(){
@@ -1818,6 +1964,7 @@ function renderProducts(){
       <div class="card-meta">
         ${p.createdAt ? `<span class="meta-chip"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg> نزل: ${dateFmt(p.createdAt)}</span>` : ''}
         ${p.expiresAt ? `<span class="meta-chip meta-expiry"><svg class="ic" viewBox="0 0 24 24"><path d="M6 2h12v4l-5 6 5 6v4H6v-4l5-6-5-6V2z"/></svg> ينتهي: ${dateFmt(p.expiresAt)}</span>` : ''}
+        ${p.maxPurchases ? `<span class="meta-chip meta-expiry">🔥 متبقي ${Math.max(0, Number(p.maxPurchases) - (Number(p.purchaseCount) || 0))} من ${p.maxPurchases}</span>` : ''}
         ${uploaderChip}
       </div>`;
     return `
@@ -2451,6 +2598,8 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
 });
 
 (async function init(){
+  const underMaintenance = await checkMaintenanceMode();
+  if (underMaintenance) return;
   const blocked = await enforceAccessControl();
   if (blocked) return;
   refreshBalanceUI();

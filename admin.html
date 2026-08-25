@@ -162,6 +162,7 @@ tr:last-child td{ border-bottom:none; }
         <div class="field"><label>مفتاح خاص بالمنتج (اختياري — يوصل تلقائياً مع الشراء)</label><input type="text" id="pKey" class="mono" placeholder="مثلاً: مفتاح ترخيص المود"></div>
         <div class="field"><label>مدة الصلاحية بالأيام (اختياري — بعدها يبقى المنتج غير متوفر تلقائياً)</label><input type="number" id="pDurationDays" min="1" placeholder="مثال: 7"></div>
         <div class="field"><label>رقم الترتيب اليدوي (اختياري — الأسهل هو السحب من تبويب "الإعدادات")</label><input type="number" id="pSortOrder" placeholder="مثال: 1"></div>
+        <div class="field"><label>حد أقصى للمشترين (اختياري — يخلي المنتج حصري، فاضية = بلا حد)</label><input type="number" id="pMaxPurchases" min="1" placeholder="مثال: 10"></div>
         <button class="btn btn-fire btn-block" id="addProductBtn">إضافة المنتج</button>
         <button class="btn btn-ghost btn-block" id="cancelEditBtn" style="display:none; margin-top:8px;">إلغاء التعديل</button>
       </div>
@@ -313,6 +314,43 @@ tr:last-child td{ border-bottom:none; }
   </div>
 
   <div class="panel" id="settingsPanel">
+
+    <div class="form-card" style="max-width:420px; border:2px solid transparent; background:linear-gradient(var(--bg-card),var(--bg-card)) padding-box, var(--accent-gradient) border-box;">
+      <h3 style="display:flex;align-items:center;gap:9px;">
+        <svg class="ic" viewBox="0 0 24 24" style="color:#ff9500;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        وضع الصيانة
+      </h3>
+      <p style="color:var(--text-muted);font-size:13px;">لما تفعّل وضع الصيانة، الزوار ما يشوفوش المتجر — يبان ليهم شاشة صيانة حتى تعطي.</p>
+      <div id="maintenanceMsg"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elevated);border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;" id="maintenanceStatusLabel">جاري التحقق...</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="maintenanceStatusSub">—</div>
+        </div>
+        <button id="maintenanceToggleBtn" class="btn" style="min-width:110px;font-size:14px;">...</button>
+      </div>
+
+      <div class="field"><label>رسالة الصيانة (تبان للزوار)</label><input type="text" id="maintenanceMessage" placeholder="مثلاً: الموقع تحت الصيانة، ارجع بعد شوية 🔧" maxlength="160"></div>
+      <div class="field"><label>وقت العودة المتوقع (اختياري)</label><input type="text" id="maintenanceEta" placeholder="مثلاً: بكرة الصبح ⏰ أو 2:00 PM"></div>
+
+      <button class="btn btn-fire btn-block" id="saveMaintenanceBtn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M7 3v5h9M7 21v-6h10v6"/></svg>
+        حفظ إعدادات الصيانة
+      </button>
+    </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
+      <h3>🎁 هدية ترحيب للمستخدمين الجدد</h3>
+      <p style="color:var(--text-muted);font-size:13px;">كل زائر جديد كيدخل الموقع لأول مرة بياخذها تلقائياً.</p>
+      <div id="welcomeGiftMsg"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;"><label>نقاط</label><input type="number" id="welcomeGiftPoints" placeholder="0"></div>
+        <div class="field" style="flex:1;"><label>جواهر</label><input type="number" id="welcomeGiftGems" placeholder="0"></div>
+      </div>
+      <button class="btn btn-fire btn-block" id="saveWelcomeGiftBtn">حفظ هدية الترحيب</button>
+    </div>
+
     <div class="form-card" style="max-width:420px;">
       <h3>ترتيب عرض المنتجات فالمتجر</h3>
       <div id="displayOrderMsg"></div>
@@ -533,7 +571,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 })();
 
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap, aiApiKeysSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap, aiApiKeysSnap, welcomeGiftSnap, maintenanceSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -551,7 +589,9 @@ async function loadAll(){
     db.collection('bannedIPs').get(),
     db.collection('settings').doc('displayOrder').get(),
     db.collection('settings').doc('aiAssistant').get(),
-    db.collection('aiApiKeys').get()
+    db.collection('aiApiKeys').get(),
+    db.collection('settings').doc('welcomeGift').get(),
+    db.collection('settings').doc('maintenance').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -576,6 +616,11 @@ async function loadAll(){
   document.getElementById('aiSystemPrompt').value = aiData.systemPrompt || '';
   window.__aiApiKeys = aiApiKeysSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderAiKeysTable();
+  window.__maintenance = maintenanceSnap.exists ? maintenanceSnap.data() : { active: false, message: '', eta: '' };
+  renderMaintenanceStatus();
+  const wg = welcomeGiftSnap.exists ? welcomeGiftSnap.data() : {};
+  document.getElementById('welcomeGiftPoints').value = wg.points || '';
+  document.getElementById('welcomeGiftGems').value = wg.gems || '';
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
   const ownerLinkData = ownerLinkSnap.exists ? ownerLinkSnap.data() : {};
@@ -688,6 +733,7 @@ function editProductRow(id){
   document.getElementById('pMedia').value = product.media || '';
   document.getElementById('pKey').value = product.productKey || '';
   document.getElementById('pDurationDays').value = product.durationDays || '';
+  document.getElementById('pMaxPurchases').value = (product.maxPurchases !== undefined && product.maxPurchases !== null) ? product.maxPurchases : '';
   document.getElementById('pSortOrder').value = (product.sortOrder !== undefined && product.sortOrder !== null) ? product.sortOrder : '';
   document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
   document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
@@ -701,7 +747,7 @@ function exitEditMode(){
   document.getElementById('productFormTitle').textContent = 'إضافة منتج جديد';
   document.getElementById('addProductBtn').textContent = 'إضافة المنتج';
   document.getElementById('cancelEditBtn').style.display = 'none';
-  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder'].forEach(id => document.getElementById(id).value = '');
+  ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder','pMaxPurchases'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pFree').checked = false;
   togglePriceFields();
 }
@@ -729,6 +775,8 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   const durationDays = Number(document.getElementById('pDurationDays').value) || 0;
   const sortOrderRaw = document.getElementById('pSortOrder').value;
   const sortOrder = sortOrderRaw === '' ? null : Number(sortOrderRaw);
+  const maxPurchasesRaw = document.getElementById('pMaxPurchases').value;
+  const maxPurchases = maxPurchasesRaw === '' ? null : Number(maxPurchasesRaw);
   const msg = document.getElementById('productMsg');
   const btn = document.getElementById('addProductBtn');
 
@@ -742,7 +790,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
   }
   btn.disabled = true;
   const expiresAt = durationDays > 0 ? Date.now() + durationDays * 86400000 : null;
-  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey, durationDays: durationDays || null, expiresAt, sortOrder };
+  const data = { name, category, description, price, discount, free, link, icon: icon || '🎮', media, productKey, durationDays: durationDays || null, expiresAt, sortOrder, maxPurchases };
   try{
     if (editingProductId){
       await db.collection('products').doc(editingProductId).update(data);
@@ -751,7 +799,7 @@ document.getElementById('addProductBtn').addEventListener('click', async () => {
     } else {
       await db.collection('products').add({ ...data, likes: 0, purchaseCount: 0, unavailable: false, createdAt: Date.now() });
       msg.innerHTML = '<div class="msg ok">تمت إضافة المنتج بنجاح.</div>';
-      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder'].forEach(id => document.getElementById(id).value = '');
+      ['pName','pDescription','pPrice','pDiscount','pLink','pIcon','pMedia','pKey','pDurationDays','pSortOrder','pMaxPurchases'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('pFree').checked = false;
       togglePriceFields();
     }
@@ -913,6 +961,18 @@ document.getElementById('saveDailyCapBtn').addEventListener('click', async () =>
   try{
     await db.collection('settings').doc('generatorConfig').set({ dailyCap: val }, { merge: true });
     msg.innerHTML = `<div class="msg ok">تم حفظ الحد اليومي: ${val} نقطة لكل IP.</div>`;
+  } catch(e){
+    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
+  }
+});
+
+document.getElementById('saveWelcomeGiftBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('welcomeGiftMsg');
+  const points = Number(document.getElementById('welcomeGiftPoints').value) || 0;
+  const gems = Number(document.getElementById('welcomeGiftGems').value) || 0;
+  try{
+    await db.collection('settings').doc('welcomeGift').set({ points, gems });
+    msg.innerHTML = '<div class="msg ok">تم حفظ هدية الترحيب بنجاح.</div>';
   } catch(e){
     msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
   }
@@ -1246,6 +1306,15 @@ function renderDataAppCard(u){
       <button class="btn btn-ghost btn-sm" data-kick="${u.id}">خروج قسري</button>
       <button class="btn btn-danger btn-sm" data-ban="${u.id}">${u.banned ? 'رفع حظر الحساب' : 'حظر الحساب'}</button>
     </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
+      <p style="font-weight:700;font-size:13px;margin-bottom:8px;">🎁 إرسال هدية مخصصة</p>
+      <div class="field"><label>المناسبة (اختياري)</label><input type="text" id="giftOccasion-${u.id}" placeholder="مثلاً: عيد ميلاد الموقع"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;"><label>نقاط</label><input type="number" id="giftPoints-${u.id}" placeholder="0"></div>
+        <div class="field" style="flex:1;"><label>جواهر</label><input type="number" id="giftGems-${u.id}" placeholder="0"></div>
+      </div>
+      <button class="btn btn-fire btn-block" data-sendgift="${u.id}">إرسال الهدية</button>
+    </div>
   </div>`;
 }
 
@@ -1260,6 +1329,20 @@ function wireDataAppCardActions(){
   container.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => resetUserAccount(b.dataset.reset)));
   container.querySelectorAll('[data-kick]').forEach(b => b.addEventListener('click', () => kickUserAccount(b.dataset.kick)));
   container.querySelectorAll('[data-ban]').forEach(b => b.addEventListener('click', () => toggleBanUser(b.dataset.ban)));
+  container.querySelectorAll('[data-sendgift]').forEach(b => b.addEventListener('click', () => sendGiftToUser(b.dataset.sendgift)));
+}
+
+async function sendGiftToUser(userId){
+  const occasion = document.getElementById('giftOccasion-' + userId).value.trim();
+  const points = Number(document.getElementById('giftPoints-' + userId).value) || 0;
+  const gems = Number(document.getElementById('giftGems-' + userId).value) || 0;
+  if (!points && !gems){ alert('حدد نقاط أو جواهر على الأقل.'); return; }
+  try{
+    await db.collection('users').doc(userId).update({
+      pendingGift: { points, gems, occasion: occasion || null, sentAt: Date.now() }
+    });
+    alert('تم إرسال الهدية، رح تبان للمستخدم أول ما يدخل الموقع.');
+  } catch(e){ alert('صار خطأ: ' + e.message); }
 }
 
 async function banIPWithDuration(ip, days){
@@ -1619,6 +1702,63 @@ document.getElementById('uploadSiteFontBtn').addEventListener('click', () => upl
 document.getElementById('uploadSiteEmojiFontBtn').addEventListener('click', () => uploadCustomFont('emoji'));
 document.getElementById('resetSiteFontBtn').addEventListener('click', () => resetCustomFont('text'));
 document.getElementById('resetSiteEmojiFontBtn').addEventListener('click', () => resetCustomFont('emoji'));
+
+/* -------- Maintenance Mode -------- */
+function renderMaintenanceStatus(){
+  const m = window.__maintenance || { active: false, message: '', eta: '' };
+  const label = document.getElementById('maintenanceStatusLabel');
+  const sub   = document.getElementById('maintenanceStatusSub');
+  const btn   = document.getElementById('maintenanceToggleBtn');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  if (m.active){
+    label.innerHTML = '<span style="color:#ff453a;">🔧 وضع الصيانة مفعّل</span>';
+    sub.textContent = 'الزوار يشوفون شاشة الصيانة الآن';
+    btn.textContent = '✅ إيقاف الصيانة';
+    btn.style.cssText = 'min-width:110px;font-size:14px;background:rgba(52,199,89,.15);color:#34c759;border:1.5px solid #34c759;';
+  } else {
+    label.innerHTML = '<span style="color:#34c759;">✅ الموقع شغال عادي</span>';
+    sub.textContent = 'الزوار يشوفون المتجر كامل';
+    btn.textContent = '🔧 تفعيل الصيانة';
+    btn.style.cssText = 'min-width:110px;font-size:14px;background:rgba(255,69,58,.12);color:#ff453a;border:1.5px solid #ff453a;';
+  }
+  msgInput.value = m.message || '';
+  etaInput.value = m.eta || '';
+}
+
+document.getElementById('maintenanceToggleBtn').addEventListener('click', async () => {
+  const m = window.__maintenance || { active: false };
+  const newActive = !m.active;
+  const msg = document.getElementById('maintenanceMsg');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  try {
+    const data = { active: newActive, message: msgInput.value.trim(), eta: etaInput.value.trim(), updatedAt: Date.now() };
+    await db.collection('settings').doc('maintenance').set(data);
+    window.__maintenance = data;
+    renderMaintenanceStatus();
+    msg.innerHTML = `<div class="msg ok">${newActive ? '🔧 تم تفعيل وضع الصيانة.' : '✅ تم إيقاف الصيانة، الموقع رجع يشتغل.'}</div>`;
+    setTimeout(() => { msg.innerHTML = ''; }, 3500);
+  } catch(e) {
+    msg.innerHTML = `<div class="msg err">صار خطأ: ${escapeHTML(e.message)}</div>`;
+  }
+});
+
+document.getElementById('saveMaintenanceBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('maintenanceMsg');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  const active = (window.__maintenance || {}).active || false;
+  try {
+    const data = { active, message: msgInput.value.trim(), eta: etaInput.value.trim(), updatedAt: Date.now() };
+    await db.collection('settings').doc('maintenance').set(data);
+    window.__maintenance = data;
+    msg.innerHTML = '<div class="msg ok">✅ تم حفظ رسالة الصيانة.</div>';
+    setTimeout(() => { msg.innerHTML = ''; }, 3000);
+  } catch(e) {
+    msg.innerHTML = `<div class="msg err">صار خطأ: ${escapeHTML(e.message)}</div>`;
+  }
+});
 </script>
 </body>
 </html>
