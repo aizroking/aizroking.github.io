@@ -1,0 +1,794 @@
+<!-- ========== قسم إدارة هدايا المستخدمين الجدد ========== -->
+<div id="newUserGiftsSection" class="admin-section">
+  <div class="section-header">
+    <h2>🎁 إدارة هدايا المستخدمين الجدد</h2>
+    <button id="addNewGiftBtn" class="btn-primary">+ إضافة هدية جديدة</button>
+  </div>
+
+  <div class="gifts-container">
+    <div id="giftsListContainer" class="gifts-list">
+      <!-- تحميل الهدايا هنا -->
+    </div>
+  </div>
+
+  <!-- نموذج إضافة هدية جديدة -->
+  <div id="newGiftModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>إضافة هدية جديدة للمستخدمين الجدد</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>نوع الهدية:</label>
+          <select id="giftTypeSelect" class="form-control">
+            <option value="points">نقاط</option>
+            <option value="coupon">كوبون/كود</option>
+            <option value="product">منتج مجاني</option>
+          </select>
+        </div>
+
+        <!-- حقول النقاط -->
+        <div id="pointsFields" class="gift-fields">
+          <div class="form-group">
+            <label>عدد النقاط:</label>
+            <input type="number" id="pointsAmount" class="form-control" min="1" placeholder="مثال: 1000">
+          </div>
+          <div class="form-group">
+            <label>الوصف:</label>
+            <input type="text" id="pointsDesc" class="form-control" placeholder="مثال: 1000 نقطة ترحيبية">
+          </div>
+        </div>
+
+        <!-- حقول الكوبون -->
+        <div id="couponFields" class="gift-fields" style="display:none;">
+          <div class="form-group">
+            <label>الكود:</label>
+            <input type="text" id="couponCode" class="form-control" placeholder="مثال: WELCOME2024">
+          </div>
+          <div class="form-group">
+            <label>الوصف:</label>
+            <input type="text" id="couponDesc" class="form-control" placeholder="مثال: خصم 20% على جميع المنتجات">
+          </div>
+        </div>
+
+        <!-- حقول المنتج المجاني -->
+        <div id="productFields" class="gift-fields" style="display:none;">
+          <div class="form-group">
+            <label>اختر المنتج:</label>
+            <select id="productSelect" class="form-control">
+              <option value="">-- اختر منتج --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="giftEnabled" checked>
+            تفعيل هذه الهدية فوراً
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelGiftBtn" class="btn-secondary">إلغاء</button>
+        <button id="saveGiftBtn" class="btn-primary">حفظ الهدية</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== قسم إدارة المنتجات المحدودة ========== -->
+<div id="exclusiveProductsSection" class="admin-section">
+  <div class="section-header">
+    <h2>⭐ إدارة المنتجات المحدودة والحصرية</h2>
+    <button id="viewStockReportBtn" class="btn-secondary">📊 عرض تقرير المبيعات</button>
+  </div>
+
+  <div class="stock-filter-bar">
+    <input type="text" id="productSearchInput" class="form-control" placeholder="ابحث عن منتج...">
+    <select id="stockStatusFilter" class="form-control">
+      <option value="">جميع المنتجات</option>
+      <option value="exclusive">منتجات محدودة فقط</option>
+      <option value="available">متاحة</option>
+      <option value="limited">محدودة</option>
+      <option value="exhausted">نفدت</option>
+    </select>
+  </div>
+
+  <div id="productsTableContainer" class="table-container">
+    <table class="products-table">
+      <thead>
+        <tr>
+          <th>اسم المنتج</th>
+          <th>النوع</th>
+          <th>الحد الأقصى</th>
+          <th>المباع</th>
+          <th>المتبقي</th>
+          <th>النسبة</th>
+          <th>الحالة</th>
+          <th>الإجراءات</th>
+        </tr>
+      </thead>
+      <tbody id="productsTableBody">
+        <!-- تحميل المنتجات هنا -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- نموذج تعديل حد المنتج -->
+  <div id="editProductLimitModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="editProductTitle">تعديل حد المنتج</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="enableExclusive">
+            تفعيل الحد الأقصى (منتج حصري)
+          </label>
+        </div>
+
+        <div id="limitFields" style="display:none;">
+          <div class="form-group">
+            <label>الحد الأقصى للوحدات:</label>
+            <input type="number" id="maxUnitsInput" class="form-control" min="1" placeholder="مثال: 50">
+          </div>
+
+          <div class="stock-preview">
+            <div class="preview-item">
+              <span>المباع:</span>
+              <strong id="previewSold">0</strong>
+            </div>
+            <div class="preview-item">
+              <span>المتبقي:</span>
+              <strong id="previewRemaining">0</strong>
+            </div>
+            <div class="preview-item">
+              <span>النسبة المئوية:</span>
+              <strong id="previewPercentage">0%</strong>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="resetSoldCount">
+              إعادة تعيين عداد المبيعات إلى 0
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelEditBtn" class="btn-secondary">إلغاء</button>
+        <button id="saveEditBtn" class="btn-primary">حفظ التغييرات</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- تقرير المبيعات -->
+  <div id="stockReportModal" class="modal" style="display:none;">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3>📊 تقرير المنتجات المحدودة</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="report-summary">
+          <div class="summary-card">
+            <div class="summary-value" id="reportTotalProducts">0</div>
+            <div class="summary-label">إجمالي المنتجات المحدودة</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" id="reportTotalUnits">0</div>
+            <div class="summary-label">إجمالي الوحدات المتاحة</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" id="reportTotalSold">0</div>
+            <div class="summary-label">إجمالي المباع</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" id="reportExhausted">0</div>
+            <div class="summary-label">منتجات نفدت</div>
+          </div>
+        </div>
+
+        <div id="reportChartContainer" style="margin-top: 30px;">
+          <!-- رسم بياني هنا -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="downloadStockReport()">📥 تحميل التقرير</button>
+        <button class="btn-secondary modal-close-btn">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== تنسيقات CSS ========== -->
+<style>
+.admin-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.section-header h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.gifts-list {
+  display: grid;
+  gap: 12px;
+}
+
+.gift-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gift-info {
+  flex: 1;
+}
+
+.gift-type-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.gift-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.gift-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gift-actions button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gift-actions button:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.stock-filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.stock-filter-bar input,
+.stock-filter-bar select {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.products-table thead {
+  background: var(--bg-elevated);
+  border-bottom: 2px solid var(--border);
+}
+
+.products-table th {
+  padding: 12px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.products-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.products-table tbody tr:hover {
+  background: var(--bg-elevated);
+}
+
+.stock-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.stock-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.status-badge.available {
+  background: rgba(61, 220, 114, 0.2);
+  color: #3ddc72;
+}
+
+.status-badge.limited {
+  background: rgba(255, 159, 64, 0.2);
+  color: #ff9f40;
+}
+
+.status-badge.exhausted {
+  background: rgba(255, 59, 48, 0.2);
+  color: #ff3b30;
+}
+
+.status-badge.unlimited {
+  background: rgba(10, 132, 255, 0.2);
+  color: var(--accent);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-buttons button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-buttons button:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-content.large {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.stock-preview {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-item span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.preview-item strong {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-header button {
+    width: 100%;
+  }
+
+  .stock-filter-bar {
+    flex-direction: column;
+  }
+
+  .stock-filter-bar input,
+  .stock-filter-bar select {
+    min-width: 100%;
+  }
+
+  .products-table {
+    font-size: 12px;
+  }
+
+  .products-table th,
+  .products-table td {
+    padding: 8px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+}
+</style>
+
+<!-- ========== JavaScript للتحكم ========== -->
+<script>
+// إدارة نموذج إضافة الهدايا
+document.getElementById('addNewGiftBtn').addEventListener('click', () => {
+  document.getElementById('newGiftModal').style.display = 'flex';
+});
+
+document.getElementById('giftTypeSelect').addEventListener('change', (e) => {
+  const type = e.target.value;
+  document.querySelectorAll('.gift-fields').forEach(el => el.style.display = 'none');
+  
+  if (type === 'points') {
+    document.getElementById('pointsFields').style.display = 'block';
+  } else if (type === 'coupon') {
+    document.getElementById('couponFields').style.display = 'block';
+  } else if (type === 'product') {
+    document.getElementById('productFields').style.display = 'block';
+    loadProductsForGift();
+  }
+});
+
+document.getElementById('cancelGiftBtn').addEventListener('click', () => {
+  document.getElementById('newGiftModal').style.display = 'none';
+});
+
+document.getElementById('saveGiftBtn').addEventListener('click', saveNewUserGift);
+
+// إدارة تعديل حدود المنتجات
+document.getElementById('enableExclusive').addEventListener('change', (e) => {
+  document.getElementById('limitFields').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('maxUnitsInput').addEventListener('input', updateLimitPreview);
+
+document.getElementById('viewStockReportBtn').addEventListener('click', showStockReport);
+
+// تحميل البيانات عند تحميل الصفحة
+async function loadGiftsSection() {
+  const gifts = await getNewUserGifts();
+  renderGiftsList(gifts);
+}
+
+async function loadExclusiveProducts() {
+  const products = await getExclusiveProducts();
+  renderProductsTable(products);
+}
+
+function renderGiftsList(gifts) {
+  const container = document.getElementById('giftsListContainer');
+  if (!gifts || gifts.length === 0) {
+    container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">لا توجد هدايا مضافة حالياً</p>';
+    return;
+  }
+
+  container.innerHTML = gifts.map(gift => `
+    <div class="gift-card">
+      <div class="gift-info">
+        <span class="gift-type-badge">${getGiftTypeLabel(gift.type)}</span>
+        <div><strong>${gift.description}</strong></div>
+        <div class="gift-desc">${getGiftDetails(gift)}</div>
+      </div>
+      <div class="gift-actions">
+        <button onclick="editGift('${gift.id}')">✏️ تعديل</button>
+        <button onclick="deleteGift('${gift.id}')">🗑️ حذف</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderProductsTable(products) {
+  const tbody = document.getElementById('productsTableBody');
+  if (!products || products.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">لا توجد منتجات محدودة</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = products.map(product => `
+    <tr>
+      <td>${product.name}</td>
+      <td><span class="status-badge unlimited">محدود</span></td>
+      <td>${product.maxUnits}</td>
+      <td>${product.soldUnits}</td>
+      <td>${product.remainingUnits > 0 ? product.remainingUnits : '<span style="color: #ff3b30;">نفدت</span>'}</td>
+      <td>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="stock-bar" style="flex: 1;">
+            <div class="stock-bar-fill" style="width: ${product.percentageSold}%;"></div>
+          </div>
+          ${product.percentageSold}%
+        </div>
+      </td>
+      <td><span class="status-badge ${getStatusClass(product)}">${getStockStatusLabel(product)}</span></td>
+      <td class="action-buttons">
+        <button onclick="openEditProductLimit('${product.id}')">⚙️</button>
+        <button onclick="resetProductSoldCount('${product.id}')">🔄</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function getGiftTypeLabel(type) {
+  const labels = {
+    'points': '💰 نقاط',
+    'coupon': '🎟️ كوبون',
+    'product': '📦 منتج'
+  };
+  return labels[type] || type;
+}
+
+function getGiftDetails(gift) {
+  if (gift.type === 'points') return `${gift.amount} نقاط`;
+  if (gift.type === 'coupon') return `الكود: ${gift.code}`;
+  if (gift.type === 'product') return `المنتج: ${gift.productName}`;
+  return '';
+}
+
+function getStatusClass(product) {
+  if (product.remainingUnits <= 0) return 'exhausted';
+  if (product.percentageSold >= 70) return 'limited';
+  return 'available';
+}
+
+function getStockStatusLabel(product) {
+  if (product.remainingUnits <= 0) return 'نفدت';
+  if (product.percentageSold >= 90) return 'محدودة جداً';
+  if (product.percentageSold >= 70) return 'محدودة';
+  return 'متوفرة';
+}
+
+async function saveNewUserGift() {
+  // سيتم تنفيذ هذه الدالة في لوحة التحكم
+  console.log('Save gift clicked');
+}
+
+async function openEditProductLimit(productId) {
+  document.getElementById('editProductLimitModal').style.display = 'flex';
+  // تحميل بيانات المنتج وملء النموذج
+}
+
+function updateLimitPreview() {
+  // تحديث معاينة الحد الأقصى
+}
+
+async function showStockReport() {
+  document.getElementById('stockReportModal').style.display = 'flex';
+  const report = await getExclusiveProductsReport();
+  if (report) {
+    document.getElementById('reportTotalProducts').textContent = report.totalProducts;
+    document.getElementById('reportTotalUnits').textContent = report.totalMaxUnits;
+    document.getElementById('reportTotalSold').textContent = report.totalSoldUnits;
+    document.getElementById('reportExhausted').textContent = report.exhaustedProducts;
+  }
+}
+
+// تحميل البيانات
+loadGiftsSection();
+loadExclusiveProducts();
+</script>
