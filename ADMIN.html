@@ -8,6 +8,10 @@
     <!-- JSZip Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
+    <!-- Firebase Libraries (App & Realtime Database) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
 
@@ -144,7 +148,7 @@
             backdrop-filter: blur(5px); z-index: 5; box-shadow: 0 4px 10px rgba(0,255,136,0.4);
         }
 
-        #upload-section, #admin-login-panel, #admin-dashboard {
+        #upload-section, #admin-login-panel {
             display: none; animation: fadeIn 0.5s forwards;
         }
 
@@ -343,11 +347,11 @@
             
             <label class="custom-file-upload">
                 <input type="file" id="user-image" accept="image/jpeg, image/png" onchange="updateFileName('user-image', 'file-name')">
-                <span id="file-name">إضغط هنا لرفع صورتك يا قحبه 🐶📸</span>
+                <span id="file-name">إضغط هنا لرفع صورتك يا أسامة 📸✨</span>
             </label>
 
             <div class="action-row">
-                <button id="process-btn" class="btn-primary" onclick="processUserImage()">تجهيز الملف يا قحبة ✨</button>
+                <button id="process-btn" class="btn-primary" onclick="processUserImage()">تجهيز الملف 🚀</button>
                 
                 <button class="btn-plus-options" onclick="openExtraModal()" title="خيارات إضافية">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -367,12 +371,6 @@
             <button class="btn-primary" style="background: linear-gradient(135deg, #ff007b, #6b00ff);" onclick="checkAdminCode()">دخول</button>
             <div id="login-msg" class="status text-red"></div>
             <button class="btn-back" onclick="goBack()">إلغاء</button>
-        </div>
-
-        <div id="admin-dashboard">
-            <h1>لوحة أسامة (Admin)</h1>
-            <p style="color: #00ff88; margin-bottom: 20px;">النظام جاهز للربط!</p>
-            <button class="btn-back" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; color:#fff;" onclick="goBack()">إغلاق اللوحة</button>
         </div>
 
     </div>
@@ -495,6 +493,32 @@
     <div class="admin-trigger" onclick="showAdmin()">AIZARO DEV</div>
 
     <script>
+        // --- تهيئة FIREBASE مع بيانات مشروعك الحقيقية (POUVEZ) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAAb4WC7CkCzmw7shh5E0e4i02wPqb_JDM",
+            authDomain: "pouvez.firebaseapp.com",
+            databaseURL: "https://pouvez-default-rtdb.firebaseio.com",
+            projectId: "pouvez",
+            storageBucket: "pouvez.firebasestorage.app",
+            messagingSenderId: "576085021795",
+            appId: "1:576085021795:web:0d5b14dcafc5f905075456",
+            measurementId: "G-77ZP60KTEE"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // رابط الإعلانات المبدئي
+        let AD_LINK = "https://www.profitableratecpmnetwork.com/jqpji6yqtx?key=3009558eef3604c54d07851b6b8ab9a6";
+
+        // الاستماع المباشر للتغيرات في Firebase
+        db.ref('settings/ad_link').on('value', (snapshot) => {
+            if (snapshot.exists() && snapshot.val()) {
+                AD_LINK = snapshot.val();
+            }
+        });
+
+        // --- باقي السكربتات والتفاعلات ---
         document.addEventListener('click', function(e) {
             const ripple = document.createElement('div');
             ripple.className = 'touch-ripple';
@@ -506,8 +530,6 @@
             document.body.appendChild(ripple);
             setTimeout(() => { ripple.remove(); }, 600);
         });
-
-        const AD_LINK = "https://www.profitableratecpmnetwork.com/jqpji6yqtx?key=3009558eef3604c54d07851b6b8ab9a6";
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
@@ -543,7 +565,6 @@
             document.getElementById('selection-section').style.display = 'none';
             document.getElementById('upload-section').style.display = 'none';
             document.getElementById('admin-login-panel').style.display = 'none';
-            document.getElementById('admin-dashboard').style.display = 'none';
             document.getElementById('selection-msg').innerText = '';
             document.getElementById('user-msg').innerText = '';
         }
@@ -559,15 +580,19 @@
         function goBack() {
             playSound('success'); hideAll(); document.getElementById('selection-section').style.display = 'block';
             document.getElementById('user-image').value = '';
-            document.getElementById('file-name').innerHTML = 'إضغط هنا لرفع صورتك يا قحبه 🐶📸';
+            document.getElementById('file-name').innerHTML = 'إضغط هنا لرفع صورتك يا أسامة 📸✨';
         }
 
         function showAdmin() { playSound('success'); hideAll(); document.getElementById('admin-login-panel').style.display = 'block'; }
 
         function checkAdminCode() {
             if (document.getElementById('admin-code').value === '2009') {
-                playSound('success'); hideAll(); document.getElementById('admin-dashboard').style.display = 'block';
-            } else { playSound('error'); document.getElementById('login-msg').innerText = 'الكود غير صحيح!'; }
+                playSound('success');
+                window.location.href = 'admin.html';
+            } else { 
+                playSound('error'); 
+                document.getElementById('login-msg').innerText = 'الكود غير صحيح!'; 
+            }
         }
 
         function updateFileName(inputId, spanId) {
@@ -684,13 +709,13 @@
 
                 const defaultFile = mainImgFile || lwImg1File || lwImg2File || brImgFile || csImgFile || guildImgFile;
 
-                // 1. الصورة الرئيسية (1440x720) -> 2099-12-07
+                // 1. الصورة الرئيسية
                 if (mainImgFile) {
                     const mainB64 = await resizeImageToBase64(mainImgFile, 1440, 720);
                     zip.file("com.dts.freefiremax/files/ImageCache/2.130/2099-12-07/2042228860", mainB64, {base64: true});
                 }
 
-                // 2. ذئب وحيد (315x243) -> 2106-02-14
+                // 2. ذئب وحيد
                 if (lwToggle) {
                     const f1 = lwImg1File || defaultFile;
                     if (f1) {
@@ -704,7 +729,7 @@
                     }
                 }
 
-                // 3. باتل رويال عادي (498x374) -> 2106-02-14
+                // 3. باتل رويال عادي
                 if (brToggle) {
                     const f = brImgFile || defaultFile;
                     if (f) {
@@ -713,7 +738,7 @@
                     }
                 }
 
-                // 4. كلاش سكود عادي (316x243) -> 2106-02-14
+                // 4. كلاش سكود عادي
                 if (csToggle) {
                     const f = csImgFile || defaultFile;
                     if (f) {
@@ -722,7 +747,7 @@
                     }
                 }
 
-                // 5. لوحة دخول الجيم (1750x1070) - 3 ملفات تلقائية -> 2106-02-14
+                // 5. لوحة دخول الجيم
                 if (loadingToggle) {
                     if (defaultFile) {
                         const b64 = await resizeImageToBase64(defaultFile, 1750, 1070);
@@ -732,7 +757,7 @@
                     }
                 }
 
-                // 6. مهمة الكلان (316x244) -> 2106-02-14
+                // 6. مهمة الكلان
                 if (guildToggle) {
                     const f = guildImgFile || defaultFile;
                     if (f) {
@@ -751,7 +776,7 @@
 
                 playSound('success');
                 msgBox.className = 'status text-green';
-                msgBox.innerText = '✅ تم التعديل والتحميل بنجاح يا عطي صرمك 🦈!';
+                msgBox.innerText = '✅ تم التعديل والتحميل بنجاح يا أسامة 🦈!';
 
             } catch (error) {
                 console.error(error);
