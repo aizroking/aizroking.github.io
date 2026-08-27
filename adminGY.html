@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIZARO - Admin Panel</title>
+    
+    <!-- Firebase Libraries (App & Realtime Database) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: hidden;
+            position: relative;
+            padding: 30px 0;
+        }
+
+        .ambient-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: moveBlob 15s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .blob-1 {
+            width: 400px; height: 400px;
+            background: linear-gradient(135deg, #ff007b, #6b00ff);
+            top: -100px; left: -100px;
+        }
+
+        .blob-2 {
+            width: 350px; height: 350px;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            bottom: -50px; right: -50px;
+            animation-delay: -5s;
+        }
+
+        @keyframes moveBlob {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 100px) scale(1.2); }
+            100% { transform: translate(-50px, 50px) scale(0.9); }
+        }
+
+        .glass-container {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px) saturate(200%);
+            -webkit-backdrop-filter: blur(25px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 35px;
+            padding: 30px;
+            width: 90%;
+            max-width: 550px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+            text-align: right;
+            position: relative;
+            z-index: 10;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-weight: 900;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(to right, #ff007b, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #00f2fe;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+
+        label {
+            font-size: 13px;
+            color: #aaa;
+            display: block;
+            margin-bottom: 6px;
+            margin-top: 12px;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 12px;
+            outline: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        textarea {
+            height: 75px;
+            resize: none;
+        }
+
+        input[type="text"] {
+            text-align: left;
+            direction: ltr;
+        }
+
+        .rtl-input {
+            text-align: right !important;
+            direction: rtl !important;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: #00f2fe;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+        }
+
+        .dim-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dim-row > div {
+            flex: 1;
+        }
+
+        button.btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 10px 20px rgba(0, 195, 255, 0.3);
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        button.btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(0, 195, 255, 0.5);
+        }
+
+        button.btn-back {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+
+        button.btn-back:hover { color: #fff; }
+
+        .status {
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 16px;
+        }
+
+        .text-green { color: #00ff88; }
+        .text-red { color: #ff3366; }
+        .text-blue { color: #00c3ff; }
+
+        .items-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .item-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-info {
+            font-size: 12px;
+            color: #ddd;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 75%;
+        }
+
+        .delete-btn {
+            background: #ff3366;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="glass-container">
+        <h1>لوحة تحكم المشرف ⚡</h1>
+        
+        <h2>إعدادات عامة</h2>
+        <label for="ad-link-input">رابط الإعلان الحالي (Direct Link):</label>
+        <textarea id="ad-link-input" class="rtl-input" placeholder="جاري جلب الرابط..."></textarea>
+        <button class="btn-primary" onclick="updateAdLink()">تحديث رابط الإعلان 💾</button>
+        <div id="admin-msg" class="status"></div>
+
+        <label for="admin-code-input">كود الدخول السري (Admin Code):</label>
+        <input type="text" id="admin-code-input" placeholder="جاري جلب الكود...">
+        <button class="btn-primary" style="background: linear-gradient(135deg, #ff007b, #6b00ff);" onclick="updateAdminCode()">تحديث كود الدخول 🔑</button>
+        <div id="code-msg" class="status"></div>
+    </div>
+
+    <div class="glass-container">
+        <h1>إدارة محتوى المودات والأبعاد 📦</h1>
+        
+        <label for="file-name-input">معرف الملف (Hash / اسم الملف):</label>
+        <input type="text" id="file-name-input" placeholder="مثال: 2091790754">
+
+        <label for="img-url-input">رابط الصورة التوضيحية:</label>
+        <input type="text" id="img-url-input" placeholder="https://example.com/image.png">
+
+        <label for="zip-path-input">مسار الحفظ داخل ملف الـ Zip:</label>
+        <input type="text" id="zip-path-input" value="com.dts.freefiremax/files/ImageCache/2.130/2106-02-14/">
+
+        <!-- حقول تحديد الأبعاد الجديدة -->
+        <div class="dim-row">
+            <div>
+                <label for="img-width-input">العرض (Width):</label>
+                <input type="text" id="img-width-input" value="312" placeholder="312">
+            </div>
+            <div>
+                <label for="img-height-input">الطول (Height):</label>
+                <input type="text" id="img-height-input" value="790" placeholder="790">
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="addNewItem()">إضافة المود بالأبعاد ➕</button>
+        <div id="item-msg" class="status"></div>
+
+        <h2>المودات المضافة حالياً:</h2>
+        <div id="items-container" class="items-list">
+            <div style="text-align: center; color: #888; font-size: 13px;">جاري التحميل...</div>
+        </div>
+
+        <button class="btn-back" onclick="goBackHome()">🔙 العودة للرئيسية</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAAb4WC7CkCzmw7shh5E0e4i02wPqb_JDM",
+            authDomain: "pouvez.firebaseapp.com",
+            databaseURL: "https://pouvez-default-rtdb.firebaseio.com",
+            projectId: "pouvez",
+            storageBucket: "pouvez.firebasestorage.app",
+            messagingSenderId: "576085021795",
+            appId: "1:576085021795:web:0d5b14dcafc5f905075456",
+            measurementId: "G-77ZP60KTEE"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const adInput = document.getElementById('ad-link-input');
+        const codeInput = document.getElementById('admin-code-input');
+        const msgBox = document.getElementById('admin-msg');
+        const codeMsgBox = document.getElementById('code-msg');
+        
+        const fileNameInput = document.getElementById('file-name-input');
+        const imgUrlInput = document.getElementById('img-url-input');
+        const zipPathInput = document.getElementById('zip-path-input');
+        const imgWidthInput = document.getElementById('img-width-input');
+        const imgHeightInput = document.getElementById('img-height-input');
+        const itemMsgBox = document.getElementById('item-msg');
+        const itemsContainer = document.getElementById('items-container');
+
+        db.ref('settings/ad_link').once('value').then((snapshot) => {
+            if (snapshot.exists()) adInput.value = snapshot.val();
+            else adInput.value = "https://www.profitableratecpmnetwork.com/jqpji6yqtx?key=3009558eef3604c54d07851b6b8ab9a6";
+        });
+
+        db.ref('settings/admin_code').once('value').then((snapshot) => {
+            if (snapshot.exists()) codeInput.value = snapshot.val();
+            else codeInput.value = "2009";
+        });
+
+        db.ref('mods_items').on('value', (snapshot) => {
+            itemsContainer.innerHTML = '';
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach((key) => {
+                    const item = data[key];
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="item-info">
+                            <b>${item.fileName}</b> [${item.width}x${item.height}]<br>
+                            <span style="color:#aaa; font-size:10px;">${item.zipPath}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteItem('${key}')">حذف</button>
+                    `;
+                    itemsContainer.appendChild(card);
+                });
+            } else {
+                itemsContainer.innerHTML = '<div style="text-align: center; color: #888; font-size: 13px;">لا توجد مودات مضافة حالياً.</div>';
+            }
+        });
+
+        function updateAdLink() {
+            const newLink = adInput.value.trim();
+            if (!newLink) {
+                msgBox.className = 'status text-red';
+                msgBox.innerText = '⚠️ الرجاء إدخال رابط صحيح!';
+                return;
+            }
+            msgBox.className = 'status text-blue';
+            msgBox.innerText = '⏳ جاري حفظ الرابط...';
+
+            db.ref('settings/ad_link').set(newLink).then(() => {
+                msgBox.className = 'status text-green';
+                msgBox.innerText = '✅ تم تحديث رابط الإعلان بنجاح!';
+            }).catch(() => {
+                msgBox.className = 'status text-red';
+                msgBox.innerText = '❌ حدث خطأ أثناء الحفظ.';
+            });
+        }
+
+        function updateAdminCode() {
+            const newCode = codeInput.value.trim();
+            if (!newCode) {
+                codeMsgBox.className = 'status text-red';
+                codeMsgBox.innerText = '⚠️ الرجاء إدخال كود صحيح!';
+                return;
+            }
+            codeMsgBox.className = 'status text-blue';
+            codeMsgBox.innerText = '⏳ جاري حفظ الكود...';
+
+            db.ref('settings/admin_code').set(newCode).then(() => {
+                codeMsgBox.className = 'status text-green';
+                codeMsgBox.innerText = '✅ تم تحديث كود الدخول بنجاح يا أسامة!';
+            }).catch(() => {
+                codeMsgBox.className = 'status text-red';
+                codeMsgBox.innerText = '❌ حدث خطأ أثناء حفظ الكود.';
+            });
+        }
+
+        function addNewItem() {
+            const fileName = fileNameInput.value.trim();
+            const imgUrl = imgUrlInput.value.trim();
+            const zipPath = zipPathInput.value.trim();
+            const width = imgWidthInput.value.trim() || "312";
+            const height = imgHeightInput.value.trim() || "790";
+
+            if (!fileName || !imgUrl || !zipPath) {
+                itemMsgBox.className = 'status text-red';
+                itemMsgBox.innerText = '⚠️ يرجى ملء جميع الحقول الأساسية!';
+                return;
+            }
+
+            itemMsgBox.className = 'status text-blue';
+            itemMsgBox.innerText = '⏳ جاري إضافة المود بالأبعاد...';
+
+            const newItemRef = db.ref('mods_items').push();
+            newItemRef.set({
+                fileName: fileName,
+                imageUrl: imgUrl,
+                zipPath: zipPath,
+                width: width,
+                height: height,
+                createdAt: Date.now()
+            })
+            .then(() => {
+                itemMsgBox.className = 'status text-green';
+                itemMsgBox.innerText = '✅ تمت إضافة المود مع الأبعاد بنجاح!';
+                fileNameInput.value = '';
+                imgUrlInput.value = '';
+            })
+            .catch(() => {
+                itemMsgBox.className = 'status text-red';
+                itemMsgBox.innerText = '❌ حدث خطأ أثناء الإضافة.';
+            });
+        }
+
+        function deleteItem(id) {
+            if (confirm('هل أنت متأكد من حذف هذا المود؟')) {
+                db.ref('mods_items/' + id).remove().catch(() => {
+                    alert('حدث خطأ أثناء الحذف');
+                });
+            }
+        }
+
+        function goBackHome() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
