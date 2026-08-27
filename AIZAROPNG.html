@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIZARO - FF MAX Editor</title>
+    
+    <!-- JSZip Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent; /* إلغاء تأثير الضغط الأزرق السيء في المتصفح */
+        }
+
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ambient-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: moveBlob 15s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .blob-1 {
+            width: 400px; height: 400px;
+            background: linear-gradient(135deg, #ff007b, #6b00ff);
+            top: -100px; left: -100px;
+        }
+
+        .blob-2 {
+            width: 350px; height: 350px;
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            bottom: -50px; right: -50px;
+            animation-delay: -5s;
+        }
+
+        @keyframes moveBlob {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 100px) scale(1.2); }
+            100% { transform: translate(-50px, 50px) scale(0.9); }
+        }
+
+        .glass-container {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px) saturate(200%);
+            -webkit-backdrop-filter: blur(25px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 35px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+            text-align: center;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-weight: 900;
+            font-size: 28px;
+            margin-bottom: 30px;
+            background: linear-gradient(to right, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .cards-grid {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            width: 48%;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            overflow: hidden;
+            animation: floatUpDown 4s infinite ease-in-out;
+        }
+
+        .game-card:nth-child(2) { animation-delay: -2s; }
+
+        @keyframes floatUpDown {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .game-card:hover {
+            transform: translateY(-15px) scale(1.05);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255,255,255,0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            animation-play-state: paused;
+        }
+
+        .card-img {
+            width: 100%; height: 120px; border-radius: 15px; object-fit: cover; margin-bottom: 10px; pointer-events: none;
+        }
+
+        .card-title { font-size: 16px; font-weight: 700; }
+
+        .badge-soon {
+            position: absolute; top: 12px; right: 12px; background: rgba(255, 0, 123, 0.9);
+            color: #fff; font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: bold; 
+            backdrop-filter: blur(5px); z-index: 5; box-shadow: 0 4px 10px rgba(255,0,123,0.4);
+        }
+
+        .badge-available {
+            position: absolute; top: 12px; right: 12px; background: rgba(0, 255, 136, 0.9);
+            color: #000; font-size: 10px; padding: 4px 10px; border-radius: 12px; font-weight: bold; 
+            backdrop-filter: blur(5px); z-index: 5; box-shadow: 0 4px 10px rgba(0,255,136,0.4);
+        }
+
+        #upload-section, #admin-login-panel, #admin-dashboard {
+            display: none; animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .custom-file-upload {
+            display: block; background: rgba(255, 255, 255, 0.05); border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 20px; padding: 30px; cursor: pointer; transition: all 0.3s; margin-bottom: 20px; font-size: 16px;
+        }
+
+        .custom-file-upload:hover {
+            background: rgba(255, 255, 255, 0.1); border-color: #00c3ff; transform: scale(1.02);
+        }
+
+        input[type="file"] { display: none; }
+        input[type="password"] {
+            width: 100%; padding: 15px; margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255,255,255,0.2);
+            color: #fff; border-radius: 15px; outline: none; text-align: center;
+        }
+
+        button.btn-primary {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #00f2fe, #4facfe);
+            border: none; border-radius: 15px; color: #fff; font-size: 18px; font-weight: bold;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: 0 10px 20px rgba(0, 195, 255, 0.3);
+        }
+
+        button.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0, 195, 255, 0.5); }
+        button.btn-primary:disabled { background: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        button.btn-back {
+            background: transparent; border: none; color: rgba(255,255,255,0.6);
+            margin-top: 15px; cursor: pointer; transition: 0.3s;
+        }
+        button.btn-back:hover { color: #fff; }
+
+        .status { margin-top: 20px; font-size: 14px; font-weight: bold; min-height: 20px; }
+        .text-green { color: #00ff88; }
+        .text-red { color: #ff3366; }
+        .text-blue { color: #00c3ff; }
+        .text-warning { color: #ffaa00; }
+
+        .admin-trigger {
+            position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: rgba(255,255,255,0.2); cursor: pointer;
+        }
+
+        /* تأثير اللمس / الضظرف (Ripple Animation) */
+        .touch-ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: rippleEffect 0.6s linear;
+            background: rgba(0, 242, 254, 0.4);
+            pointer-events: none;
+        }
+
+        @keyframes rippleEffect {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="glass-container" id="main-panel">
+        
+        <div id="selection-section">
+            <h1>اختر النسخة</h1>
+            <div class="cards-grid">
+                <!-- كارت FF NORMAL -->
+                <div class="game-card" onclick="selectVersion('NORMAL')">
+                    <div class="badge-soon">قريباً</div>
+                    <img src="https://img.icons8.com/?size=100&id=S82R0mhIAwEg&format=png&color=000000" alt="FF NORMAL" class="card-img" style="filter: grayscale(80%); object-fit: contain; background: rgba(255,255,255,0.05);">
+                    <div class="card-title" style="color: #aaa;">FF NORMAL</div>
+                </div>
+
+                <!-- كارت FF MAX -->
+                <div class="game-card" onclick="selectVersion('MAX')">
+                    <div class="badge-available">متوفر</div>
+                    <img src="https://files.catbox.moe/xdd3qk.png" alt="FF MAX" class="card-img" style="object-fit: cover;">
+                    <div class="card-title">FF MAX</div>
+                </div>
+            </div>
+            <div id="selection-msg" class="status text-red"></div>
+        </div>
+
+        <div id="upload-section">
+            <h1>تعديل FF MAX</h1>
+            <label class="custom-file-upload">
+                <input type="file" id="user-image" accept="image/jpeg, image/png" onchange="updateFileName()">
+                <span id="file-name">إضغط هنا لرفع صورتك يا قحبه 🐶📸</span>
+            </label>
+            <button id="process-btn" class="btn-primary" onclick="processUserImage()">تجهيز الملف يا قحبة ✨</button>
+            <div id="user-msg" class="status"></div>
+            <button class="btn-back" onclick="goBack()">🔙 العودة للنسخ</button>
+        </div>
+
+        <div id="admin-login-panel">
+            <h1>نظام المشرف</h1>
+            <input type="password" id="admin-code" placeholder="أدخل كود الوصول (2009)...">
+            <button class="btn-primary" style="background: linear-gradient(135deg, #ff007b, #6b00ff);" onclick="checkAdminCode()">دخول</button>
+            <div id="login-msg" class="status text-red"></div>
+            <button class="btn-back" onclick="goBack()">إلغاء</button>
+        </div>
+
+        <div id="admin-dashboard">
+            <h1>لوحة أسامة (Admin)</h1>
+            <p style="color: #00ff88; margin-bottom: 20px;">النظام جاهز للربط!</p>
+            <button class="btn-back" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; color:#fff;" onclick="goBack()">إغلاق اللوحة</button>
+        </div>
+
+    </div>
+
+    <div class="admin-trigger" onclick="showAdmin()">AIZARO DEV</div>
+
+    <script>
+        // --- تأثير اللمس الـ Ripple في كل مكان ---
+        document.addEventListener('click', function(e) {
+            const ripple = document.createElement('div');
+            ripple.className = 'touch-ripple';
+            const size = 60;
+            ripple.style.width = size + 'px';
+            ripple.style.height = size + 'px';
+            ripple.style.left = (e.pageX - size / 2) + 'px';
+            ripple.style.top = (e.pageY - size / 2) + 'px';
+            document.body.appendChild(ripple);
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+
+        // --- الرابط النظيف الخاص بك ---
+        const AD_LINK = "https://www.profitableratecpmnetwork.com/jqpji6yqtx?key=3009558eef3604c54d07851b6b8ab9a6";
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'success') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'error') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(311.13, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(261.63, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wait') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        function hideAll() {
+            document.getElementById('selection-section').style.display = 'none';
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('admin-login-panel').style.display = 'none';
+            document.getElementById('admin-dashboard').style.display = 'none';
+            document.getElementById('selection-msg').innerText = '';
+            document.getElementById('user-msg').innerText = '';
+        }
+
+        function selectVersion(version) {
+            if (version === 'MAX') {
+                playSound('success'); hideAll(); document.getElementById('upload-section').style.display = 'block';
+            } else {
+                playSound('error'); document.getElementById('selection-msg').innerText = 'نسخة FF عادي عصب على رسك 🦄  غير متاحة حالياً، قريباً!';
+            }
+        }
+
+        function goBack() {
+            playSound('success'); hideAll(); document.getElementById('selection-section').style.display = 'block';
+            document.getElementById('user-image').value = '';
+            document.getElementById('file-name').innerHTML = 'إضغط هنا لرفع صورتك 📸';
+        }
+
+        function showAdmin() { playSound('success'); hideAll(); document.getElementById('admin-login-panel').style.display = 'block'; }
+
+        function checkAdminCode() {
+            if (document.getElementById('admin-code').value === '2009') {
+                playSound('success'); hideAll(); document.getElementById('admin-dashboard').style.display = 'block';
+            } else { playSound('error'); document.getElementById('login-msg').innerText = 'الكود غير صحيح!'; }
+        }
+
+        function updateFileName() {
+            const input = document.getElementById('user-image');
+            if (input.files.length > 0) {
+                playSound('success'); document.getElementById('file-name').innerHTML = `<span style="color:#00ff88">تم اختيار: ${input.files[0].name} ✔️</span>`;
+            }
+        }
+
+        async function processUserImage() {
+            const imageInput = document.getElementById('user-image');
+            const msgBox = document.getElementById('user-msg');
+            const btn = document.getElementById('process-btn');
+
+            if (imageInput.files.length === 0) {
+                playSound('error'); msgBox.className = 'status text-red'; msgBox.innerText = '⚠️ الرجاء اختيار صورة أولاً!';
+                return;
+            }
+
+            window.open(AD_LINK, '_blank');
+            
+            btn.disabled = true;
+            let timeLeft = 5;
+            
+            const countdownInterval = setInterval(() => {
+                playSound('wait');
+                msgBox.className = 'status text-warning';
+                msgBox.innerText = `⏳ جاري معالجة الملف... يرجى الانتظار ${timeLeft} ثوانٍ`;
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(countdownInterval);
+                    generateAndDownloadFile(imageInput.files[0], msgBox, btn);
+                }
+            }, 1000);
+        }
+
+        function generateAndDownloadFile(imageFile, msgBox, btn) {
+            msgBox.className = 'status text-blue';
+            msgBox.innerText = '⚙️ جاري تجهيز الملف النهائي...';
+
+            const img = new Image();
+            img.src = URL.createObjectURL(imageFile);
+
+            img.onerror = function() {
+                playSound('error'); msgBox.className = 'status text-red'; msgBox.innerText = '❌ الملف ليس صورة صالحة!';
+                btn.disabled = false;
+            };
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1440; canvas.height = 720;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 1440, 720);
+
+                canvas.toBlob(async function(resizedBlob) {
+                    try {
+                        const zip = new JSZip();
+                        zip.file("com.dts.freefiremax/files/ImageCache/2.130/2099-12-07/2042228860", resizedBlob);
+
+                        const content = await zip.generateAsync({ type: "blob" });
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(content);
+                        link.download = "Oussi_FFMAX_2026.zip";
+                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+                        playSound('success');
+                        msgBox.className = 'status text-green';
+                        msgBox.innerText = '✅ تم التعديل والتحميل بنجاح يا عطي صرمك  🦈!';
+                    } catch (error) {
+                        playSound('error'); msgBox.className = 'status text-red'; msgBox.innerText = '❌ حدث خطأ غير متوقع.';
+                    }
+                    btn.disabled = false;
+                }, 'image/jpeg', 1.0);
+            };
+        }
+    </script>
+</body>
+</html>
+   }
+        }
+    </script>
+</body>
+</html>
