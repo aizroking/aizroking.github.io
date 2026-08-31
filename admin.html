@@ -142,10 +142,6 @@ tr:last-child td{ border-bottom:none; }
     <button class="admin-tab" data-panel="moderatorsPanel">المشرفين</button>
     <button class="admin-tab" data-panel="genKeysPanel">مفاتيح المولّد</button>
     <button class="admin-tab" data-panel="dataAppPanel">DATA APP <svg class="ic" viewBox="0 0 24 24"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M12.2 6.2L11 5M12.2 11.8L11 13"/><path d="M3 21l9-9"/></svg></button>
-    <button class="admin-tab" data-panel="tasksPanel">🎯 المهام</button>
-    <button class="admin-tab" data-panel="commentsAdminPanel">💬 التعليقات</button>
-    <button class="admin-tab" data-panel="reportsPanel">🚩 بلاغات التعليقات</button>
-    <button class="admin-tab" data-panel="calcReportsPanel">🔧 بلاغات الحاسبة</button>
     <button class="admin-tab" data-panel="settingsPanel">الإعدادات</button>
   </div>
 
@@ -317,97 +313,34 @@ tr:last-child td{ border-bottom:none; }
     <div id="dataAppResults"></div>
   </div>
 
-  <div class="panel" id="tasksPanel">
-    <div class="two-col">
-      <div class="form-card">
-        <h3 id="taskFormTitle">🎯 إضافة مهمة جديدة</h3>
-        <div id="taskMsg"></div>
-        <div class="field"><label>عنوان المهمة</label><input type="text" id="taskTitle" placeholder="مثلاً: اشترك فقناة AIZARO"></div>
-        <div class="field"><label>الوصف (اختياري)</label><textarea id="taskDescription" placeholder="وصف قصير للمهمة" style="min-height:54px;"></textarea></div>
-        <div class="field">
-          <label>نوع المهمة</label>
-          <select id="taskType" onchange="onTaskTypeChange()">
-            <option value="telegram_channel">📢 اشتراك قناة تلجرام</option>
-            <option value="telegram_bot">🤖 تشغيل بوت تلجرام</option>
-            <option value="link">🔗 فتح رابط / اختصار</option>
-          </select>
-        </div>
-        <!-- حقول قناة تلجرام -->
-        <div id="taskFieldsTelegram">
-          <div class="field"><label>رابط القناة</label><input type="text" id="taskChannelUrl" class="mono" placeholder="https://t.me/CHANNEL_NAME"></div>
-        </div>
-        <!-- حقول بوت تلجرام -->
-        <div id="taskFieldsBot" style="display:none;">
-          <div class="field"><label>رابط البوت</label><input type="text" id="taskBotUrl" class="mono" placeholder="https://t.me/BOT_NAME"></div>
-          <div class="field"><label>أمر التشغيل (اختياري)</label><input type="text" id="taskBotCommand" class="mono" placeholder="مثلاً: /start أو /join"></div>
-          <div class="field"><label>نص الزر (اختياري)</label><input type="text" id="taskBotBtnText" placeholder="مثلاً: شغّل البوت"></div>
-        </div>
-        <!-- حقول رابط عادي -->
-        <div id="taskFieldsLink" style="display:none;">
-          <div class="field"><label>الرابط</label><input type="text" id="taskLinkUrl" class="mono" placeholder="https://..."></div>
-        </div>
-        <div class="field"><label>المكافأة (نقاط)</label><input type="number" id="taskReward" min="1" placeholder="20"></div>
-        <div class="field"><label>أيقونة (إيموجي — اختياري)</label><input type="text" id="taskIcon" placeholder="🎁"></div>
-        <div class="field"><label>أقل مدة انتظار بالثواني (حماية من الغش)</label><input type="number" id="taskMinSeconds" min="5" value="20" placeholder="20"></div>
-        <button class="btn btn-fire btn-block" id="addTaskBtn">➕ إضافة المهمة</button>
-        <button class="btn btn-ghost btn-block" id="cancelTaskEditBtn" style="display:none;margin-top:8px;">إلغاء التعديل</button>
-        <div class="note">⚠️ الحماية مبنية على قياس المدة الحقيقية + حساب واحد = مكافأة واحدة فقط. لا يمكن الحماية 100% بدون سيرفر خلفي حقيقي.</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>المهمة</th><th>النوع</th><th>المكافأة</th><th>منجزين</th><th>الحالة</th><th></th></tr></thead>
-          <tbody id="tasksTableBody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel" id="commentsAdminPanel">
-    <div class="form-card" style="max-width:480px;margin-bottom:22px;">
-      <h3>💬 إدارة تعليقات منتج</h3>
-      <p style="color:var(--text-muted);font-size:13px;">اختار منتج لتشوف تعليقاته وتحذف أي تعليق مخالف.</p>
-      <div class="field">
-        <label>المنتج</label>
-        <select id="commentsAdminProductSelect"><option value="">— اختار منتج —</option></select>
-      </div>
-      <button class="btn btn-fire" id="loadCommentsAdminBtn"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> تحميل التعليقات</button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>المستخدم</th><th>التعليق</th><th>التاريخ</th><th>لايكات</th><th></th></tr></thead>
-        <tbody id="commentsAdminTableBody"><tr><td colspan="5">اختار منتج وانقر "تحميل التعليقات".</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="panel" id="reportsPanel">
-    <div class="form-card" style="max-width:100%;margin-bottom:22px;">
-      <h3>🚩 البلاغات على التعليقات</h3>
-      <p style="color:var(--text-muted);font-size:13px;">كل البلاغات اللي رفعها المستخدمون على التعليقات. قدر تحذف التعليق مباشرة من هنا.</p>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID التعليق</th><th>المنتج</th><th>من طرف (ID)</th><th>التاريخ</th><th>الحالة</th><th></th></tr></thead>
-        <tbody id="reportsTableBody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="panel" id="calcReportsPanel">
-    <div class="form-card" style="max-width:100%;margin-bottom:22px;">
-      <h3>🔧 بلاغات الحاسبات الوهمية</h3>
-      <p style="color:var(--text-muted);font-size:13px;">البلاغات اللي رفعها المستخدمون على مواقع وبوتات حاسبة مزيفة.</p>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>الرابط</th><th>النوع</th><th>التفاصيل</th><th>المبلّغ</th><th>التاريخ</th><th>الحالة</th><th></th></tr></thead>
-        <tbody id="calcReportsTableBody"><tr><td colspan="7">جاري التحميل...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
   <div class="panel" id="settingsPanel">
-    <div class="form-card" style="max-width:420px;">
+
+    <div class="form-card" style="max-width:420px; border:2px solid transparent; background:linear-gradient(var(--bg-card),var(--bg-card)) padding-box, var(--accent-gradient) border-box;">
+      <h3 style="display:flex;align-items:center;gap:9px;">
+        <svg class="ic" viewBox="0 0 24 24" style="color:#ff9500;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        وضع الصيانة
+      </h3>
+      <p style="color:var(--text-muted);font-size:13px;">لما تفعّل وضع الصيانة، الزوار ما يشوفوش المتجر — يبان ليهم شاشة صيانة حتى تعطي.</p>
+      <div id="maintenanceMsg"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elevated);border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;" id="maintenanceStatusLabel">جاري التحقق...</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="maintenanceStatusSub">—</div>
+        </div>
+        <button id="maintenanceToggleBtn" class="btn" style="min-width:110px;font-size:14px;">...</button>
+      </div>
+
+      <div class="field"><label>رسالة الصيانة (تبان للزوار)</label><input type="text" id="maintenanceMessage" placeholder="مثلاً: الموقع تحت الصيانة، ارجع بعد شوية 🔧" maxlength="160"></div>
+      <div class="field"><label>وقت العودة المتوقع (اختياري)</label><input type="text" id="maintenanceEta" placeholder="مثلاً: بكرة الصبح ⏰ أو 2:00 PM"></div>
+
+      <button class="btn btn-fire btn-block" id="saveMaintenanceBtn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M7 3v5h9M7 21v-6h10v6"/></svg>
+        حفظ إعدادات الصيانة
+      </button>
+    </div>
+
+    <div class="form-card" style="max-width:420px;margin-top:22px;">
       <h3>🎁 هدية ترحيب للمستخدمين الجدد</h3>
       <p style="color:var(--text-muted);font-size:13px;">كل زائر جديد كيدخل الموقع لأول مرة بياخذها تلقائياً.</p>
       <div id="welcomeGiftMsg"></div>
@@ -638,7 +571,7 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
 })();
 
 async function loadAll(){
-  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap, aiApiKeysSnap, welcomeGiftSnap, tasksSnap, reportsSnap, commentReportsSnap, calcReportsSnap] = await Promise.all([
+  const [productsSnap, categoriesSnap, codesSnap, accountKeysSnap, usersSnap, vipDealsSnap, socialLinksSnap, siteMusicSnap, modKeysSnap, moderatorsSnap, genKeysSnap, generatorConfigSnap, customFontsSnap, ownerLinkSnap, bannedIPsSnap, displayOrderSnap, aiAssistantSnap, aiApiKeysSnap, welcomeGiftSnap, maintenanceSnap] = await Promise.all([
     db.collection('products').get(),
     db.collection('categories').get(),
     db.collection('codes').get(),
@@ -658,10 +591,7 @@ async function loadAll(){
     db.collection('settings').doc('aiAssistant').get(),
     db.collection('aiApiKeys').get(),
     db.collection('settings').doc('welcomeGift').get(),
-    db.collection('tasks').get(),
-    db.collection('reports').get(),
-    db.collection('commentReports').get(),
-    db.collection('calcReports').get()
+    db.collection('settings').doc('maintenance').get()
   ]);
   allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -686,16 +616,11 @@ async function loadAll(){
   document.getElementById('aiSystemPrompt').value = aiData.systemPrompt || '';
   window.__aiApiKeys = aiApiKeysSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderAiKeysTable();
+  window.__maintenance = maintenanceSnap.exists ? maintenanceSnap.data() : { active: false, message: '', eta: '' };
+  renderMaintenanceStatus();
   const wg = welcomeGiftSnap.exists ? welcomeGiftSnap.data() : {};
   document.getElementById('welcomeGiftPoints').value = wg.points || '';
   document.getElementById('welcomeGiftGems').value = wg.gems || '';
-  window.__tasks = tasksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  window.__reports = [...reportsSnap.docs.map(d=>({id:d.id,...d.data()})), ...commentReportsSnap.docs.map(d=>({id:d.id,...d.data()}))];
-  window.__calcReports = calcReportsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  renderTasksTable();
-  renderReportsTable();
-  renderCalcReportsTable();
-  populateCommentsProductSelect();
   window.__customFonts = customFontsSnap.exists ? customFontsSnap.data() : {};
   renderCustomFontsStatus();
   const ownerLinkData = ownerLinkSnap.exists ? ownerLinkSnap.data() : {};
@@ -808,8 +733,8 @@ function editProductRow(id){
   document.getElementById('pMedia').value = product.media || '';
   document.getElementById('pKey').value = product.productKey || '';
   document.getElementById('pDurationDays').value = product.durationDays || '';
-  document.getElementById('pSortOrder').value = (product.sortOrder !== undefined && product.sortOrder !== null) ? product.sortOrder : '';
   document.getElementById('pMaxPurchases').value = (product.maxPurchases !== undefined && product.maxPurchases !== null) ? product.maxPurchases : '';
+  document.getElementById('pSortOrder').value = (product.sortOrder !== undefined && product.sortOrder !== null) ? product.sortOrder : '';
   document.getElementById('productFormTitle').textContent = 'تعديل المنتج';
   document.getElementById('addProductBtn').textContent = 'حفظ التعديلات';
   document.getElementById('cancelEditBtn').style.display = 'block';
@@ -1535,7 +1460,6 @@ async function toggleModeratorActive(modId){
   await loadAll();
 }
 
-/* ---------- Tasks (point-earning missions) ---------- */
 /* ---------- VIP daily deals ---------- */
 function populateVipDealSelects(){
   const sel1 = document.getElementById('vipDeal1');
@@ -1779,291 +1703,62 @@ document.getElementById('uploadSiteEmojiFontBtn').addEventListener('click', () =
 document.getElementById('resetSiteFontBtn').addEventListener('click', () => resetCustomFont('text'));
 document.getElementById('resetSiteEmojiFontBtn').addEventListener('click', () => resetCustomFont('emoji'));
 
-/* ============================================================
-   TASKS ADMIN — إدارة المهام
-   ============================================================ */
-function onTaskTypeChange(){
-  const t = document.getElementById('taskType').value;
-  document.getElementById('taskFieldsTelegram').style.display = t === 'telegram_channel' ? '' : 'none';
-  document.getElementById('taskFieldsBot').style.display      = t === 'telegram_bot'     ? '' : 'none';
-  document.getElementById('taskFieldsLink').style.display     = t === 'link'             ? '' : 'none';
-}
-
-let editingTaskId = null;
-
-function renderTasksTable(){
-  const tbody = document.getElementById('tasksTableBody');
-  const tasks = (window.__tasks || []).slice().sort((a,b) => (a.createdAt||0)-(b.createdAt||0));
-  if (!tasks.length){ tbody.innerHTML = '<tr><td colspan="6">ما في مهام بعد.</td></tr>'; return; }
-  const typeLabel = { telegram_channel:'📢 قناة', telegram_bot:'🤖 بوت', link:'🔗 رابط', telegram:'📢 قناة' };
-  tbody.innerHTML = tasks.map(t => `
-  <tr>
-    <td>${t.icon||'🎯'} <b>${escapeHTML(t.title)}</b>${t.description ? `<br><span style="color:var(--text-muted);font-size:12px;">${escapeHTML(t.description)}</span>` : ''}</td>
-    <td>${typeLabel[t.type] || t.type}</td>
-    <td>🪙 ${t.reward}</td>
-    <td>${Number(t.completedCount)||0}</td>
-    <td><span class="tag ${t.active===false ? 'used' : 'unused'}">${t.active===false ? 'معطل' : 'نشط'}</span></td>
-    <td class="row-actions" style="white-space:nowrap;">
-      <button class="btn btn-ghost btn-sm" data-edittask="${t.id}"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
-      <button class="btn btn-ghost btn-sm" data-toggletask="${t.id}">${t.active===false ? 'تفعيل' : 'تعطيل'}</button>
-      <button class="btn btn-danger btn-sm" data-deltask="${t.id}">حذف</button>
-    </td>
-  </tr>`).join('');
-  tbody.querySelectorAll('[data-edittask]').forEach(b => b.addEventListener('click', () => editTask(b.dataset.edittask)));
-  tbody.querySelectorAll('[data-toggletask]').forEach(b => b.addEventListener('click', () => toggleTask(b.dataset.toggletask)));
-  tbody.querySelectorAll('[data-deltask]').forEach(b => b.addEventListener('click', () => deleteTask(b.dataset.deltask)));
-}
-
-function editTask(id){
-  const task = (window.__tasks||[]).find(t => t.id === id);
-  if (!task) return;
-  editingTaskId = id;
-  document.getElementById('taskFormTitle').textContent = '✏️ تعديل المهمة';
-  document.getElementById('taskTitle').value = task.title || '';
-  document.getElementById('taskDescription').value = task.description || '';
-  document.getElementById('taskType').value = task.type === 'telegram' ? 'telegram_channel' : (task.type || 'telegram_channel');
-  document.getElementById('taskReward').value = task.reward || '';
-  document.getElementById('taskIcon').value = task.icon || '';
-  document.getElementById('taskMinSeconds').value = task.minSeconds || 20;
-  // fill url fields
-  document.getElementById('taskChannelUrl').value = task.url || '';
-  document.getElementById('taskBotUrl').value = task.botUrl || task.url || '';
-  document.getElementById('taskBotCommand').value = task.botCommand || '';
-  document.getElementById('taskBotBtnText').value = task.botBtnText || '';
-  document.getElementById('taskLinkUrl').value = task.url || '';
-  onTaskTypeChange();
-  document.getElementById('addTaskBtn').textContent = '💾 حفظ التعديلات';
-  document.getElementById('cancelTaskEditBtn').style.display = 'block';
-  document.getElementById('taskTitle').scrollIntoView({ behavior:'smooth', block:'center' });
-}
-
-function cancelTaskEdit(){
-  editingTaskId = null;
-  document.getElementById('taskFormTitle').textContent = '🎯 إضافة مهمة جديدة';
-  document.getElementById('addTaskBtn').textContent = '➕ إضافة المهمة';
-  document.getElementById('cancelTaskEditBtn').style.display = 'none';
-  ['taskTitle','taskDescription','taskChannelUrl','taskBotUrl','taskBotCommand','taskBotBtnText','taskLinkUrl','taskReward','taskIcon'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('taskMinSeconds').value = 20;
-  document.getElementById('taskType').value = 'telegram_channel';
-  onTaskTypeChange();
-}
-document.getElementById('cancelTaskEditBtn').addEventListener('click', cancelTaskEdit);
-
-async function toggleTask(id){
-  const task = (window.__tasks||[]).find(t => t.id === id);
-  if (!task) return;
-  await db.collection('tasks').doc(id).update({ active: task.active === false ? true : false });
-  await loadAll();
-}
-
-async function deleteTask(id){
-  if (!confirm('متأكد بدك تحذف هاذ المهمة؟')) return;
-  await db.collection('tasks').doc(id).delete();
-  await loadAll();
-}
-
-document.getElementById('addTaskBtn').addEventListener('click', async () => {
-  const msg = document.getElementById('taskMsg');
-  const title = document.getElementById('taskTitle').value.trim();
-  const description = document.getElementById('taskDescription').value.trim();
-  const type = document.getElementById('taskType').value;
-  const reward = Number(document.getElementById('taskReward').value);
-  const icon = document.getElementById('taskIcon').value.trim() || '🎯';
-  const minSeconds = Number(document.getElementById('taskMinSeconds').value) || 20;
-
-  if (!title || !reward || reward <= 0){
-    msg.innerHTML = '<div class="msg err">عبي العنوان والمكافأة.</div>'; return;
-  }
-
-  let url = '', botUrl = '', botCommand = '', botBtnText = '';
-  if (type === 'telegram_channel'){
-    url = document.getElementById('taskChannelUrl').value.trim();
-    if (!url){ msg.innerHTML = '<div class="msg err">حط رابط القناة.</div>'; return; }
-  } else if (type === 'telegram_bot'){
-    botUrl = document.getElementById('taskBotUrl').value.trim();
-    botCommand = document.getElementById('taskBotCommand').value.trim();
-    botBtnText = document.getElementById('taskBotBtnText').value.trim();
-    url = botUrl;
-    if (!botUrl){ msg.innerHTML = '<div class="msg err">حط رابط البوت.</div>'; return; }
+/* -------- Maintenance Mode -------- */
+function renderMaintenanceStatus(){
+  const m = window.__maintenance || { active: false, message: '', eta: '' };
+  const label = document.getElementById('maintenanceStatusLabel');
+  const sub   = document.getElementById('maintenanceStatusSub');
+  const btn   = document.getElementById('maintenanceToggleBtn');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  if (m.active){
+    label.innerHTML = '<span style="color:#ff453a;">🔧 وضع الصيانة مفعّل</span>';
+    sub.textContent = 'الزوار يشوفون شاشة الصيانة الآن';
+    btn.textContent = '✅ إيقاف الصيانة';
+    btn.style.cssText = 'min-width:110px;font-size:14px;background:rgba(52,199,89,.15);color:#34c759;border:1.5px solid #34c759;';
   } else {
-    url = document.getElementById('taskLinkUrl').value.trim();
-    if (!url){ msg.innerHTML = '<div class="msg err">حط الرابط.</div>'; return; }
+    label.innerHTML = '<span style="color:#34c759;">✅ الموقع شغال عادي</span>';
+    sub.textContent = 'الزوار يشوفون المتجر كامل';
+    btn.textContent = '🔧 تفعيل الصيانة';
+    btn.style.cssText = 'min-width:110px;font-size:14px;background:rgba(255,69,58,.12);color:#ff453a;border:1.5px solid #ff453a;';
   }
-
-  const data = { title, description, type, url, botUrl, botCommand, botBtnText, reward, icon, minSeconds, active: true };
-  if (!editingTaskId) data.createdAt = Date.now();
-
-  const btn = document.getElementById('addTaskBtn');
-  btn.disabled = true;
-  try{
-    if (editingTaskId){
-      await db.collection('tasks').doc(editingTaskId).update(data);
-      msg.innerHTML = '<div class="msg ok">تم حفظ التعديلات ✅</div>';
-      cancelTaskEdit();
-    } else {
-      data.completedCount = 0;
-      await db.collection('tasks').add(data);
-      msg.innerHTML = '<div class="msg ok">تمت إضافة المهمة ✅</div>';
-      cancelTaskEdit();
-    }
-    await loadAll();
-  } catch(e){
-    msg.innerHTML = '<div class="msg err">صار خطأ: ' + escapeHTML(e.message) + '</div>';
-  }
-  btn.disabled = false;
-});
-
-/* ============================================================
-   COMMENTS ADMIN — إدارة التعليقات
-   ============================================================ */
-function populateCommentsProductSelect(){
-  const sel = document.getElementById('commentsAdminProductSelect');
-  sel.innerHTML = '<option value="">— اختار منتج —</option>' +
-    (allProducts || []).map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join('');
+  msgInput.value = m.message || '';
+  etaInput.value = m.eta || '';
 }
 
-document.getElementById('loadCommentsAdminBtn').addEventListener('click', async () => {
-  const productId = document.getElementById('commentsAdminProductSelect').value;
-  const tbody = document.getElementById('commentsAdminTableBody');
-  if (!productId){ tbody.innerHTML = '<tr><td colspan="5">اختار منتج أولاً.</td></tr>'; return; }
-  tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
-  try{
-    const snap = await db.collection('products').doc(productId)
-      .collection('comments').orderBy('createdAt', 'desc').get();
-    const comments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (comments.length === 0){
-      tbody.innerHTML = '<tr><td colspan="5">ما في تعليقات على هاذ المنتج.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = comments.map(c => `
-    <tr>
-      <td>
-        <span class="code-mono" style="font-size:11px;">${escapeHTML(c.authorId || '—')}</span><br>
-        <b>${escapeHTML(c.authorName || 'مجهول')}</b>${c.isVip ? ' ⭐' : ''}
-      </td>
-      <td style="max-width:280px;white-space:normal;word-break:break-word;">${escapeHTML(c.text)}</td>
-      <td style="font-size:11px;">${c.createdAt ? new Date(c.createdAt).toLocaleString('ar-DZ', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
-      <td>❤️ ${c.likes || 0}</td>
-      <td class="row-actions">
-        <button class="btn btn-danger btn-sm" data-delcomment="${c.id}" data-product="${productId}">حذف</button>
-      </td>
-    </tr>`).join('');
-    tbody.querySelectorAll('[data-delcomment]').forEach(b => {
-      b.addEventListener('click', () => adminDeleteComment(b.dataset.product, b.dataset.delcomment));
-    });
-  } catch(e){
-    tbody.innerHTML = '<tr><td colspan="5">صار خطأ: ' + escapeHTML(e.message) + '</td></tr>';
+document.getElementById('maintenanceToggleBtn').addEventListener('click', async () => {
+  const m = window.__maintenance || { active: false };
+  const newActive = !m.active;
+  const msg = document.getElementById('maintenanceMsg');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  try {
+    const data = { active: newActive, message: msgInput.value.trim(), eta: etaInput.value.trim(), updatedAt: Date.now() };
+    await db.collection('settings').doc('maintenance').set(data);
+    window.__maintenance = data;
+    renderMaintenanceStatus();
+    msg.innerHTML = `<div class="msg ok">${newActive ? '🔧 تم تفعيل وضع الصيانة.' : '✅ تم إيقاف الصيانة، الموقع رجع يشتغل.'}</div>`;
+    setTimeout(() => { msg.innerHTML = ''; }, 3500);
+  } catch(e) {
+    msg.innerHTML = `<div class="msg err">صار خطأ: ${escapeHTML(e.message)}</div>`;
   }
 });
 
-async function adminDeleteComment(productId, commentId){
-  if (!confirm('متأكد بدك تحذف هاذ التعليق؟')) return;
-  try{
-    await db.collection('products').doc(productId).collection('comments').doc(commentId).delete();
-    /* تحديث العداد */
-    const countRef = db.collection('commentCounts').doc(productId);
-    const countSnap = await countRef.get();
-    if (countSnap.exists){
-      const cur = Number(countSnap.data().count) || 0;
-      await countRef.set({ count: Math.max(0, cur - 1) });
-    }
-    /* إعادة تحميل القائمة */
-    document.getElementById('loadCommentsAdminBtn').click();
-  } catch(e){
-    alert('صار خطأ بالحذف: ' + e.message);
+document.getElementById('saveMaintenanceBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('maintenanceMsg');
+  const msgInput = document.getElementById('maintenanceMessage');
+  const etaInput = document.getElementById('maintenanceEta');
+  const active = (window.__maintenance || {}).active || false;
+  try {
+    const data = { active, message: msgInput.value.trim(), eta: etaInput.value.trim(), updatedAt: Date.now() };
+    await db.collection('settings').doc('maintenance').set(data);
+    window.__maintenance = data;
+    msg.innerHTML = '<div class="msg ok">✅ تم حفظ رسالة الصيانة.</div>';
+    setTimeout(() => { msg.innerHTML = ''; }, 3000);
+  } catch(e) {
+    msg.innerHTML = `<div class="msg err">صار خطأ: ${escapeHTML(e.message)}</div>`;
   }
-}
-
-/* ============================================================
-   REPORTS — بلاغات التعليقات (نسخة محسّنة)
-   ============================================================ */
-function renderReportsTable(){
-  const tbody = document.getElementById('reportsTableBody');
-  const reports = (window.__reports || []).slice().sort((a, b) => (b.reportedAt || 0) - (a.reportedAt || 0));
-  if (reports.length === 0){
-    tbody.innerHTML = '<tr><td colspan="6">ما في بلاغات بعد.</td></tr>';
-    return;
-  }
-  const productName = (id) => {
-    const p = (allProducts || []).find(p => p.id === id);
-    return p ? p.name : id;
-  };
-  tbody.innerHTML = reports.map(r => `
-  <tr>
-    <td class="code-mono" style="font-size:11px;">${escapeHTML(r.commentId || '—')}</td>
-    <td>${escapeHTML(productName(r.productId || ''))}</td>
-    <td class="code-mono" style="font-size:11px;">${escapeHTML(r.reportedBy || '—')}</td>
-    <td style="font-size:11px;">${r.reportedAt ? new Date(r.reportedAt).toLocaleString('ar-DZ', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'}</td>
-    <td><span class="tag ${r.resolved ? 'used' : 'unused'}">${r.resolved ? 'تمت المعالجة' : 'جديد'}</span></td>
-    <td class="row-actions">
-      <button class="btn btn-danger btn-sm" data-delreportcomment="${r.commentId}" data-reportproduct="${r.productId || ''}" data-reportid="${r.id}">حذف التعليق</button>
-      <button class="btn btn-ghost btn-sm" data-resolvereport="${r.id}">تجاهل</button>
-    </td>
-  </tr>`).join('');
-
-  tbody.querySelectorAll('[data-delreportcomment]').forEach(b => {
-    b.addEventListener('click', async () => {
-      const cid = b.dataset.delreportcomment;
-      const pid = b.dataset.delreportcomment && b.dataset.reportproduct;
-      const rid = b.dataset.reportid;
-      if (!cid || !pid){ alert('معلومات ناقصة.'); return; }
-      if (!confirm('تحذف التعليق وتحل البلاغ؟')) return;
-      try{
-        await db.collection('products').doc(pid).collection('comments').doc(cid).delete().catch(()=>{});
-        await db.collection('commentReports').doc(rid).update({ resolved: true });
-        await loadAll();
-      } catch(e){ alert('صار خطأ: ' + e.message); }
-    });
-  });
-  tbody.querySelectorAll('[data-resolvereport]').forEach(b => {
-    b.addEventListener('click', async () => {
-      try{
-        await db.collection('commentReports').doc(b.dataset.resolvereport).update({ resolved: true });
-        await loadAll();
-      } catch(e){}
-    });
-  });
-}
-
-/* ============================================================
-   CALC REPORTS — بلاغات الحاسبات الوهمية
-   ============================================================ */
-const calcReportTypeLabel = {
-  fake_calculator: '🧮 حاسبة FPS وهمية',
-  scam:            '💀 نصب واحتيال',
-  fake_boost:      '⚡ تحسين مزيف',
-  impersonation:   '🎭 انتحال هوية AIZARO',
-  other:           '❓ أخرى'
-};
-
-function renderCalcReportsTable(){
-  const tbody = document.getElementById('calcReportsTableBody');
-  if (!tbody) return;
-  const reports = (window.__calcReports || []).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  if (!reports.length){ tbody.innerHTML = '<tr><td colspan="7">ما في بلاغات بعد.</td></tr>'; return; }
-  tbody.innerHTML = reports.map(r => `
-  <tr>
-    <td style="max-width:160px;word-break:break-all;font-size:12px;" class="code-mono">${escapeHTML(r.url||'—')}</td>
-    <td style="white-space:nowrap;">${calcReportTypeLabel[r.type]||r.type||'—'}</td>
-    <td style="max-width:200px;white-space:normal;font-size:12px;">${escapeHTML(r.details||'—')}</td>
-    <td style="font-size:12px;">${escapeHTML(r.reporter||r.reporterId||'—')}</td>
-    <td style="font-size:11px;white-space:nowrap;">${r.createdAt ? new Date(r.createdAt).toLocaleString('ar-DZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-    <td><span class="tag ${r.resolved ? 'unused' : 'used'}">${r.resolved ? 'تمت المعالجة' : 'جديد'}</span></td>
-    <td class="row-actions" style="white-space:nowrap;">
-      ${!r.resolved ? `<button class="btn btn-ghost btn-sm" data-resolvecalc="${r.id}">✅ معالجة</button>` : ''}
-      <button class="btn btn-danger btn-sm" data-delcalc="${r.id}">حذف</button>
-    </td>
-  </tr>`).join('');
-
-  tbody.querySelectorAll('[data-resolvecalc]').forEach(b => b.addEventListener('click', async () => {
-    try{ await db.collection('calcReports').doc(b.dataset.resolvecalc).update({ resolved: true }); await loadAll(); }catch(e){}
-  }));
-  tbody.querySelectorAll('[data-delcalc]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('حذف البلاغ نهائياً؟')) return;
-    try{ await db.collection('calcReports').doc(b.dataset.delcalc).delete(); await loadAll(); }catch(e){}
-  }));
-}
-
+});
 </script>
 </body>
 </html>
