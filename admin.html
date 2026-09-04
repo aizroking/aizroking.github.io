@@ -186,9 +186,13 @@ body::after{
 }
 .top-strip h2{ font-size:28px; font-weight:800; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
 
-/* ─── Nav Tabs — iOS 26 Pill ─── */
+/* ─── Nav Tabs — iOS 26 horizontal scroll ─── */
 .admin-tabs{
-  display:flex; gap:6px; flex-wrap:wrap;
+  display:flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 6px;
   padding: 6px;
   background: var(--glass);
   backdrop-filter: blur(20px);
@@ -196,10 +200,15 @@ body::after{
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   margin-bottom: 24px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
 }
+.admin-tabs::-webkit-scrollbar{ display:none; }
 .admin-tab{
   display:flex; align-items:center; gap:7px;
-  padding: 9px 16px;
+  padding: 10px 16px;
   border: none; background: none;
   border-radius: 14px;
   font-family: 'IBM Plex Sans Arabic',sans-serif;
@@ -208,6 +217,8 @@ body::after{
   cursor: pointer;
   transition: var(--transition-fast);
   white-space: nowrap;
+  flex-shrink: 0;
+  scroll-snap-align: start;
   position: relative;
 }
 .admin-tab svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; opacity:.8; transition:transform .3s cubic-bezier(.34,1.56,.64,1); }
@@ -350,11 +361,17 @@ tbody tr:hover{ background:var(--glass-hover); }
 .ic{ width:18px; height:18px; vertical-align:middle; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .ember-field{ display:none; }
 .reorder-list{ display:flex; flex-direction:column; gap:8px; }
-.reorder-item{ display:flex; align-items:center; gap:10px; background:var(--glass); border:1px solid var(--glass-border); border-radius:var(--radius-xs); padding:10px 14px; cursor:grab; transition:var(--transition-fast); }
+.reorder-item{ display:flex; align-items:center; gap:10px; background:var(--glass); border:1px solid var(--glass-border); border-radius:var(--radius-xs); padding:10px 14px; cursor:grab; transition:var(--transition-fast); touch-action:none; }
 .reorder-item:hover{ background:var(--glass-hover); transform:scale(1.01); }
 .reorder-item.dragging{ opacity:.5; transform:scale(.98); }
-.reorder-item .handle{ color:var(--text-3); }
+.reorder-item .handle{ color:var(--text-3); touch-action:none; }
 .reorder-item .rname{ flex:1; font-size:13.5px; }
+.reorder-arrows{ display:flex; flex-direction:column; gap:2px; }
+.reorder-arrow-btn{ width:26px; height:22px; border-radius:6px; border:1px solid var(--glass-border); background:var(--glass); color:var(--text-2); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:var(--transition-fast); }
+.reorder-arrow-btn:hover{ background:var(--glass-hover); color:var(--text); }
+.reorder-arrow-btn:active{ transform:scale(.9); }
+.reorder-arrow-btn:disabled{ opacity:.25; cursor:default; }
+.reorder-arrow-btn svg{ width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
 .theme-toggle{ display:none; }
 
 /* Light mode fixes */
@@ -1428,8 +1445,29 @@ function renderReorderList(){
     <div class="reorder-item" data-id="${p.id}">
       <span class="handle"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span>
       <span class="rname">${p.icon || '🎮'} ${escapeHTML(p.name)}</span>
+      <div class="reorder-arrows">
+        <button class="reorder-arrow-btn" data-move="up" title="نقل لأعلى"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg></button>
+        <button class="reorder-arrow-btn" data-move="down" title="نقل لأسفل"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+      </div>
     </div>`).join('');
   wireReorderDrag();
+  wireReorderArrows();
+}
+
+function wireReorderArrows(){
+  const list = document.getElementById('reorderList');
+  list.querySelectorAll('.reorder-item').forEach(item => {
+    const upBtn = item.querySelector('[data-move="up"]');
+    const downBtn = item.querySelector('[data-move="down"]');
+    if(upBtn) upBtn.addEventListener('click', () => {
+      const prev = item.previousElementSibling;
+      if(prev) list.insertBefore(item, prev);
+    });
+    if(downBtn) downBtn.addEventListener('click', () => {
+      const next = item.nextElementSibling;
+      if(next) list.insertBefore(next, item);
+    });
+  });
 }
 
 function wireReorderDrag(){
@@ -1437,13 +1475,17 @@ function wireReorderDrag(){
   let draggingEl = null;
 
   list.querySelectorAll('.reorder-item').forEach(item => {
-    item.addEventListener('pointerdown', (e) => {
+    const handle = item.querySelector('.handle');
+    if(!handle) return;
+
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       draggingEl = item;
       item.classList.add('dragging');
-      item.setPointerCapture(e.pointerId);
+      handle.setPointerCapture(e.pointerId);
     });
 
-    item.addEventListener('pointermove', (e) => {
+    handle.addEventListener('pointermove', (e) => {
       if (!draggingEl) return;
       const afterEl = getReorderAfterElement(list, e.clientY);
       if (afterEl == null){
@@ -1457,8 +1499,8 @@ function wireReorderDrag(){
       if (draggingEl) draggingEl.classList.remove('dragging');
       draggingEl = null;
     };
-    item.addEventListener('pointerup', endDrag);
-    item.addEventListener('pointercancel', endDrag);
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
   });
 }
 
