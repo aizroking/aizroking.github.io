@@ -1526,6 +1526,26 @@ function applyVipTheme(){
   if (btn) btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5" fill="currentColor" opacity=".12"/><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7"/></svg>`;
 }
 
+async function updateAccountBtnAvatar(){
+  const btn = document.getElementById('accountBtn');
+  if(!btn) return;
+  const me = getCurrentUser() || getRegularUser();
+  if(!me){
+    applyVipTheme();
+    return;
+  }
+  try{
+    const snap = await db.collection('users').doc(me.id).get();
+    if(snap.exists && snap.data().avatarUrl){
+      btn.innerHTML = `<img src="${escapeHTML(snap.data().avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      btn.style.overflow = 'hidden';
+      btn.style.padding = '0';
+    } else {
+      applyVipTheme();
+    }
+  } catch(e){ applyVipTheme(); }
+}
+
 let vipDealProductIds = [];
 async function loadVipDeals(){
   try{
@@ -2868,6 +2888,7 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     await loadVipDeals();
     await checkAccountStatus();
     await checkRegularAccountStatus();
+    await updateAccountBtnAvatar();
     loadSocialLinks();
     loadSiteMusic();
     loadAIAssistant();
@@ -3305,6 +3326,7 @@ if(saveProfileBtn) saveProfileBtn.addEventListener('click', async()=>{
     await uRef.update(updateData);
     avatarDataURL=null; removeAvatarFlag=false;
     if(msg) msg.innerHTML='<div class="msg ok">✅ تم حفظ البروفيل!</div>';
+    updateAccountBtnAvatar();
     setTimeout(()=>{ if(msg) msg.innerHTML=''; },3000);
   }catch(e){ if(msg) msg.innerHTML=`<div class="msg err">صار خطأ: ${escapeHTML(e.message)}</div>`; }
   saveProfileBtn.disabled=false; saveProfileBtn.textContent='💾 حفظ البروفيل';
