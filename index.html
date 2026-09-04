@@ -383,6 +383,18 @@ footer a{ color:var(--accent); text-decoration:none; }
 .splash-chip:active{ transform:scale(0.95); }
 .splash-chip-gold{ background:linear-gradient(90deg,#caa53d33,#f5d98022); border-color:#caa53d66; color:#f5d980; }
 @keyframes splashPulse{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.12); } }
+/* ====== PREMIUM RANK BADGES ====== */
+.rank-badge{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:800; padding:4px 10px 4px 8px; border-radius:999px; letter-spacing:.2px; white-space:nowrap; }
+.rank-badge svg{ width:12px; height:12px; flex-shrink:0; }
+.rank-badge.rank-1{ background:linear-gradient(90deg,#8d6e4a,#c99a5f); color:#fff; }
+.rank-badge.rank-2{ background:linear-gradient(90deg,#8a8f99,#c3c9d4); color:#2a2d33; }
+.rank-badge.rank-4{ background:linear-gradient(90deg,#d8a53d,#f5d980); color:#5a3800; }
+.rank-badge.rank-5{ background:linear-gradient(90deg,#3ea6ff,#6bd0ff); color:#00304d; }
+.rank-badge.rank-7{ background:linear-gradient(90deg,#7d5aff,#b98cff); color:#fff; }
+.rank-badge.rank-8{ background:linear-gradient(90deg,#ff5aa8,#ff8ecf); color:#5a0030; }
+.rank-badge.rank-9{ background:linear-gradient(90deg,#ff3b30,#ff8a5c); color:#fff; }
+.rank-badge.rank-10{ background:linear-gradient(90deg,#0a84ff,#bf5af2,#ff6bd6); color:#fff; box-shadow:0 0 14px rgba(191,90,242,.5); }
+
 /* ====== HUD CLEAN ====== */
 .hud-inner{ display:flex; align-items:center; justify-content:space-between; position:relative; padding:10px 0; }
 .hud-right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
@@ -546,6 +558,17 @@ footer a{ color:var(--accent); text-decoration:none; }
         <svg viewBox="0 0 20 20" fill="none" style="width:15px;height:15px;flex-shrink:0;"><circle cx="10" cy="10" r="9" fill="#f5c842" opacity=".22"/><circle cx="10" cy="10" r="6" fill="#f5c842" opacity=".55"/><text x="10" y="14" text-anchor="middle" font-size="8" font-weight="800" fill="#7a4a00" font-family="system-ui">P</text></svg>
         <span id="balanceChip">0</span>
       </div>
+      <div id="hudRankBadge" style="display:none;"></div>
+      <!-- زر تفعيل كود -->
+      <button class="hud-icon-btn" id="hudRedeemBtn" title="تفعيل كود نقاط">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2" fill="currentColor" opacity=".1"/>
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <path d="M2 10h20"/>
+          <path d="M6 15h4"/>
+          <path d="M14 15h2"/>
+        </svg>
+      </button>
       <button class="hud-icon-btn" id="accountBtn" title="حسابي">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="8" r="3.5" fill="currentColor" opacity=".12"/><circle cx="12" cy="8" r="3.5"/>
@@ -735,6 +758,7 @@ footer a{ color:var(--accent); text-decoration:none; }
         <p>مرحباً <b id="profileUsername"></b> <span id="profileVipBadge"></span></p>
         <p style="font-size:12px;color:var(--text-muted);">الـ ID: <span class="mono" id="profileUserId"></span></p>
         <p>رصيدك: <b id="profilePoints">0</b> نقطة &nbsp;|&nbsp; جواهرك: <b id="profileGems">0</b> 💎</p>
+        <div id="profileRankBadge" style="margin:8px 0;"></div>
         <p id="profileLinkStatus" style="color:var(--text-muted);font-size:13px;"></p>
         <div id="profileLinkForm" style="display:none;margin-top:10px;">
           <div class="field"><label>كلمة مرور لربط حسابك من أي جهاز</label><input type="password" id="setPasswordInput"></div>
@@ -985,6 +1009,11 @@ async function checkRegularAccountStatus(){
     if (!snap.exists) return;
     const data = snap.data();
     reconcileBalance(r.id, data);
+    // Migration: إذا totalEarned ما موجود، نحطها برصيده الحالي كبداية
+    if (data.totalEarned === undefined || data.totalEarned === null){
+      const initTotal = Math.max(Number(data.points)||0, getBalance());
+      db.collection('users').doc(r.id).update({ totalEarned: initTotal }).catch(()=>{});
+    }
     db.collection('users').doc(r.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
     if (data.unbanNotice){
       showUnbanNotice();
@@ -1022,12 +1051,21 @@ function showUnbanNotice(){
 }
 function getBalance(){ return parseInt(localStorage.getItem(BAL_KEY) || '0', 10); }
 function setBalance(v){
+  const prev = getBalance();
   const val = isLoggedIn() ? v : Math.max(0, v);
   localStorage.setItem(BAL_KEY, String(val));
+  const delta = val - prev;
   const u = getCurrentUser();
-  if (u){ db.collection('users').doc(u.id).update({ points: val }).catch(()=>{}); return; }
+  if (u){
+    db.collection('users').doc(u.id).update({ points: val }).catch(()=>{});
+    if (delta > 0) db.collection('users').doc(u.id).update({ totalEarned: firebase.firestore.FieldValue.increment(delta) }).catch(()=>{});
+    return;
+  }
   const r = getRegularUser();
-  if (r){ db.collection('users').doc(r.id).update({ points: val }).catch(()=>{}); }
+  if (r){
+    db.collection('users').doc(r.id).update({ points: val }).catch(()=>{});
+    if (delta > 0) db.collection('users').doc(r.id).update({ totalEarned: firebase.firestore.FieldValue.increment(delta) }).catch(()=>{});
+  }
 }
 function getOwned(){ return JSON.parse(localStorage.getItem(OWN_KEY) || '[]'); }
 function setOwned(list){ localStorage.setItem(OWN_KEY, JSON.stringify(list)); }
@@ -1478,6 +1516,11 @@ async function checkAccountStatus(){
       applyVipTheme();
     }
     reconcileBalance(u.id, data);
+    // Migration: إذا totalEarned ما موجود، نحطها برصيده الحالي كبداية
+    if (data.totalEarned === undefined || data.totalEarned === null){
+      const initTotal = Math.max(Number(data.points)||0, getBalance());
+      db.collection('users').doc(u.id).update({ totalEarned: initTotal }).catch(()=>{});
+    }
     db.collection('users').doc(u.id).update({ lastSeenAt: Date.now() }).catch(()=>{});
     if (data.unbanNotice){
       showUnbanNotice();
@@ -2119,12 +2162,19 @@ let allCategories = [];
 let activeCategory = 'all';
 let pendingProductId = null;
 
+function formatPoints(n){
+  const num = Number(n) || 0;
+  if(num >= 1000000) return (num/1000000).toFixed(num%1000000===0?0:1).replace(/\.0$/,'') + 'M';
+  if(num >= 1000)    return (num/1000).toFixed(num%1000===0?0:1).replace(/\.0$/,'') + 'K';
+  return String(num);
+}
+
 function refreshBalanceUI(){
   const balance = getBalance();
   const chip = document.getElementById('balanceChip');
-  if(chip){ chip.textContent = balance; chip.style.minWidth=''; chip.classList.remove('skeleton'); }
+  if(chip){ chip.textContent = formatPoints(balance); chip.style.minWidth=''; chip.classList.remove('skeleton'); }
   const bv = document.getElementById('balanceValue');
-  if(bv) bv.textContent = balance;
+  if(bv) bv.textContent = balance.toLocaleString('ar');
   const mf = document.getElementById('meterFill');
   if(mf) mf.style.width = Math.min(100, (balance/300)*100) + '%';
   const mh = document.getElementById('meterHint');
@@ -2605,6 +2655,17 @@ document.getElementById('accountBtn').addEventListener('click', async () => {
     document.getElementById('profilePoints').textContent = getBalance();
     document.getElementById('profileGems').textContent = getGems();
     document.getElementById('profileVipBadge').innerHTML = u.subscribed ? '<svg class="ic" viewBox="0 0 24 24"><path d="M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8z"/><line x1="5" y1="20" x2="19" y2="20"/></svg> VIP' : '';
+    // رتبة Premium
+    (async()=>{
+      try{
+        const snap = await db.collection('users').doc(u.id).get();
+        const totalEarned = snap.exists ? (Number(snap.data().totalEarned)||0) : 0;
+        const rank = getPremiumRank(totalEarned);
+        const el = document.getElementById('profileRankBadge');
+        if(el) el.innerHTML = rank ? rankBadgeHTML(rank) + `<span style="font-size:11px;color:var(--text-muted);margin-right:6px;">/ ${totalEarned.toLocaleString('ar')} نقطة مجموع</span>` : '<span style="font-size:12px;color:var(--text-muted);">لسا ما وصلت رتبة Premium — اجمع 1000 نقطة!</span>';
+        updateHudRankBadge(rank);
+      }catch(e){}
+    })();
     document.getElementById('profileLinkStatus').innerHTML = u.subscribed
       ? '✅ حسابك مربوط ومشترك VIP'
       : '🔒 حسابك مربوط بكلمة مرور (بلا اشتراك VIP)';
@@ -2618,6 +2679,17 @@ document.getElementById('accountBtn').addEventListener('click', async () => {
     document.getElementById('profilePoints').textContent = getBalance();
     document.getElementById('profileGems').textContent = getGems();
     document.getElementById('profileVipBadge').textContent = '';
+    // رتبة Premium
+    (async()=>{
+      try{
+        const snap = await db.collection('users').doc(r.id).get();
+        const totalEarned = snap.exists ? (Number(snap.data().totalEarned)||0) : 0;
+        const rank = getPremiumRank(totalEarned);
+        const el = document.getElementById('profileRankBadge');
+        if(el) el.innerHTML = rank ? rankBadgeHTML(rank) + `<span style="font-size:11px;color:var(--text-muted);margin-right:6px;">/ ${totalEarned.toLocaleString('ar')} نقطة مجموع</span>` : '<span style="font-size:12px;color:var(--text-muted);">لسا ما وصلت رتبة Premium — اجمع 1000 نقطة!</span>';
+        updateHudRankBadge(rank);
+      }catch(e){}
+    })();
     document.getElementById('profileLinkStatus').innerHTML = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg> حسابك غير مربوط - إذا مسحت الكاش أو بدلت الجهاز راح تخسر نقاطك. اربطو بكلمة مرور.';
     document.getElementById('togglePassFormBtn').textContent = 'ربط الحساب الآن';
     document.getElementById('togglePassFormBtn').dataset.mode = 'link';
@@ -2889,6 +2961,18 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
     await checkAccountStatus();
     await checkRegularAccountStatus();
     await updateAccountBtnAvatar();
+    // عرض الرتبة في الـ HUD فوراً بعد تحميل الصفحة
+    (async()=>{
+      const me = getCurrentUser() || getRegularUser();
+      if(!me) return;
+      try{
+        const snap = await db.collection('users').doc(me.id).get();
+        if(snap.exists){
+          const total = Number(snap.data().totalEarned) || 0;
+          updateHudRankBadge(getPremiumRank(total));
+        }
+      }catch(e){}
+    })();
     loadSocialLinks();
     loadSiteMusic();
     loadAIAssistant();
@@ -2906,9 +2990,45 @@ document.getElementById('enterSiteBtn').addEventListener('click', async () => {
   openProductFromURL();
 })();
 
+/* ====== PREMIUM RANK SYSTEM ====== */
+const PREMIUM_RANKS = [
+  { min: 1000000, tier: 10, name: 'Premium 10' },
+  { min: 200000,  tier: 9,  name: 'Premium 9'  },
+  { min: 120000,  tier: 8,  name: 'Premium 8'  },
+  { min: 70000,   tier: 7,  name: 'Premium 7'  },
+  { min: 50000,   tier: 5,  name: 'Premium 5'  },
+  { min: 10000,   tier: 4,  name: 'Premium 4'  },
+  { min: 3000,    tier: 2,  name: 'Premium 2'  },
+  { min: 1000,    tier: 1,  name: 'Premium 1'  },
+];
+function getPremiumRank(totalEarned){
+  const total = Number(totalEarned) || 0;
+  for(const r of PREMIUM_RANKS){ if(total >= r.min) return r; }
+  return null;
+}
+function rankBadgeHTML(rank){
+  if(!rank) return '';
+  return `<span class="rank-badge rank-${rank.tier}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>${rank.name}</span>`;
+}
+
 /* ====== HUD DROPDOWN ====== */
+function updateHudRankBadge(rank){
+  const el = document.getElementById('hudRankBadge');
+  if(!el) return;
+  if(rank){
+    el.innerHTML = rankBadgeHTML(rank);
+    el.style.display = 'block';
+  } else {
+    el.innerHTML = '';
+    el.style.display = 'none';
+  }
+}
+
 // تحديث الرصيد فوراً من localStorage قبل Firebase
-(function(){ const chip=document.getElementById('balanceChip'); if(chip) chip.textContent=parseInt(localStorage.getItem('aizaro_balance')||'0',10); })();
+(function(){ const chip=document.getElementById('balanceChip'); if(chip) chip.textContent=formatPoints(parseInt(localStorage.getItem('aizaro_balance')||'0',10)); })();
+
+// زر تفعيل كود في الـ HUD
+document.getElementById('hudRedeemBtn').addEventListener('click', () => openModal('redeemOverlay'));
 const hudMenuBtn = document.getElementById('hudMenuBtn');
 const hudDropdown = document.getElementById('hudDropdown');
 if(hudMenuBtn && hudDropdown){
@@ -3037,7 +3157,11 @@ async function claimTask(task,btn,timerEl){
       if(!s.exists) throw new Error('notfound');
       const done=s.data().completedTasks||{};
       if(done[task.id]) throw new Error('alreadydone');
-      tx.update(uRef,{points:(s.data().points||0)+task.reward,completedTasks:{...done,[task.id]:Date.now()}});
+      tx.update(uRef,{
+        points:(s.data().points||0)+task.reward,
+        totalEarned:(Number(s.data().totalEarned)||0)+task.reward,
+        completedTasks:{...done,[task.id]:Date.now()}
+      });
       return task.reward;
     });
     db.collection('tasks').doc(task.id).update({completedCount:firebase.firestore.FieldValue.increment(1)}).catch(()=>{});
@@ -3082,7 +3206,7 @@ async function openPublicProfile(userId){
       <div class="profile-avatar">${avatarHTML}</div>
       <div class="profile-username">${escapeHTML(userDoc.username||'—')}</div>
       ${userDoc.bio?`<div class="profile-bio">${escapeHTML(userDoc.bio)}</div>`:'<div class="profile-bio" style="opacity:.5;">بدون بيو.</div>'}
-      <div class="profile-badges">${userDoc.subscribed?'<span class="profile-badge vip">⭐ مشترك VIP</span>':'<span class="profile-badge regular">👤 مستخدم عادي</span>'}</div>
+      <div class="profile-badges">${userDoc.subscribed?'<span class="profile-badge vip">⭐ مشترك VIP</span>':'<span class="profile-badge regular">👤 مستخدم عادي</span>'}${getPremiumRank(userDoc.totalEarned) ? rankBadgeHTML(getPremiumRank(userDoc.totalEarned)) : ''}</div>
       <div class="profile-stats">
         <div class="profile-stat"><div class="ps-val">${Number(userDoc.points)||0}</div><div class="ps-label">نقطة</div></div>
         <div class="profile-stat"><div class="ps-val">${Number(userDoc.gems)||0}</div><div class="ps-label">💎</div></div>
@@ -3381,7 +3505,7 @@ if(transferBtn) transferBtn.addEventListener('click', async()=>{
       const myPts=myS.data().points||0;
       if(myPts<total) throw new Error(`رصيدك غير كافٍ (${myPts} نقطة).`);
       tx.update(myRef,{points:myPts-total});
-      tx.update(recRef,{points:(recS.data().points||0)+amount});
+      tx.update(recRef,{points:(recS.data().points||0)+amount,totalEarned:(Number(recS.data().totalEarned)||0)+amount});
     });
     await db.collection('transfers').add({from:me.id,fromName:me.username,to:recipientDoc.id,toName:recipientDoc.username,amount,fee,total,createdAt:Date.now()});
     setBalance(myBal-total);
